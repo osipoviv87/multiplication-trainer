@@ -587,8 +587,8 @@ const app = {
 
     startPractice(mode) {
         this.practiceSetup.mode = mode;
-        const unlocked = this.getUnlockedMultipliers();
-        this.practiceSetup.selectedMults = [...unlocked];
+        const allMults = [2,3,4,5,6,7,8,9,10];
+        this.practiceSetup.selectedMults = [...allMults];
 
         const titles = {
             flash: '🃏 Карточки', time: '⏱️ Марафон',
@@ -606,14 +606,12 @@ const app = {
 
         const picker = document.getElementById('mult-picker');
         picker.innerHTML = '';
-        [2,3,4,5,6,7,8,9,10].forEach(m => {
+        allMults.forEach(m => {
             const btn = document.createElement('button');
-            const isUnlocked = unlocked.includes(m);
-            btn.className = `mult-btn ${isUnlocked ? 'selected' : 'locked'}`;
+            btn.className = 'mult-btn selected';
             btn.textContent = `×${m}`;
-            btn.disabled = !isUnlocked;
             btn.dataset.mult = m;
-            if (isUnlocked) btn.onclick = () => this.toggleMult(m, btn);
+            btn.onclick = () => this.toggleMult(m, btn);
             picker.appendChild(btn);
         });
 
