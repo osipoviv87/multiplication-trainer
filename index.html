@@ -10,12 +10,33 @@
 <body>
     <div class="app-container">
 
+        <!-- ЭКРАН ПРИВЕТСТВИЯ -->
+        <div id="screen-welcome" class="screen">
+            <div class="welcome-wrapper">
+                <div class="mascot">🥷</div>
+                <h1 class="title">Математика Семпай!</h1>
+                <p class="subtitle">Путь ниндзя таблицы умножения</p>
+
+                <div class="welcome-speech">
+                    <p>Привет! Я — <strong>Семпай</strong>, твой наставник по таблице умножения.</p>
+                    <p>Вместе мы освоим секретные техники — и умножение станет для тебя проще простого!</p>
+                </div>
+
+                <div class="welcome-input-group">
+                    <label for="name-input">Как тебя зовут, юный ниндзя?</label>
+                    <input type="text" id="name-input" placeholder="Введи своё имя..." maxlength="20" autocomplete="off">
+                </div>
+
+                <button class="btn-main" id="btn-start" onclick="app.submitName()">⚡ Начать путь!</button>
+            </div>
+        </div>
+
         <!-- ГЛАВНЫЙ ЭКРАН -->
-        <div id="screen-home" class="screen active">
-            <div class="header-decor">✨ 🌸 ✨</div>
-            <div class="mascot">🎀</div>
-            <h1 class="title">Математика Семпай!</h1>
-            <p class="subtitle">Путь героя таблицы умножения</p>
+        <div id="screen-home" class="screen">
+            <div class="header-decor">⚡ 🔥 ⚡</div>
+            <div class="mascot">🥷</div>
+            <h1 class="title" id="home-greeting">Математика Семпай!</h1>
+            <p class="subtitle" id="home-subtitle">Путь ниндзя таблицы умножения</p>
 
             <div class="stats-box">
                 <div class="stat">
@@ -27,48 +48,46 @@
                     <span class="stat-label">Точность</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-val" id="stat-week">1</span>
-                    <span class="stat-label">Неделя</span>
+                    <span class="stat-val" id="stat-streak">0</span>
+                    <span class="stat-label">Рекорд</span>
                 </div>
             </div>
 
-            <button class="btn-main" onclick="app.nav('screen-map')">🗺️ Карта Приключения</button>
-            <button class="btn-sec" onclick="app.nav('screen-practice')">⚔️ Тренировка</button>
-            <button class="btn-sec" onclick="app.nav('screen-achievements')">🏆 Достижения</button>
+            <button class="btn-main" onclick="app.nav('screen-map')">⚔️ Карта Приключений</button>
+            <button class="btn-sec" onclick="app.nav('screen-practice')">🥊 Тренировка</button>
+            <button class="btn-sec" onclick="app.nav('screen-achievements')">🏆 Зал Славы</button>
         </div>
 
-        <!-- КАРТА УРОВНЕЙ (НЕДЕЛИ) -->
+        <!-- КАРТА УРОВНЕЙ -->
         <div id="screen-map" class="screen">
             <div class="nav-bar">
-                <button class="btn-back" onclick="app.nav('screen-home')">⬅ Домой</button>
-                <h2>Карта Обучения</h2>
+                <button class="btn-back" onclick="app.nav('screen-home')">← Назад</button>
+                <h2>Карта Глав</h2>
             </div>
-            <div id="weeks-container" class="weeks-list">
-                <!-- Генерируется через JS -->
-            </div>
+            <div id="weeks-container" class="weeks-list"></div>
         </div>
 
         <!-- ЭКРАН УРОКА -->
         <div id="screen-lesson" class="screen">
             <div class="nav-bar">
-                <button class="btn-back" onclick="app.nav('screen-map')">⬅ Карта</button>
-                <h2 id="lesson-title">Урок 1</h2>
+                <button class="btn-back" onclick="app.nav('screen-map')">← Карта</button>
+                <h2 id="lesson-title">Урок</h2>
                 <div class="streak">🔥 <span id="streak-val">0</span></div>
             </div>
 
             <div class="lesson-area">
-                <!-- Блок стратегии -->
+                <!-- Стратегия -->
                 <div class="strategy-box">
-                    <h4>💡 Секретный приём</h4>
+                    <h4>⚡ Секретная техника</h4>
                     <p id="strategy-text">Загрузка...</p>
                 </div>
 
                 <!-- Визуализация -->
                 <div class="visual-stage">
                     <div class="visual-controls">
-                        <button onclick="app.setVisual('array')">📊 Массив</button>
-                        <button onclick="app.setVisual('line')">📏 Линия</button>
-                        <button onclick="app.setVisual('fingers')">👐 Пальцы</button>
+                        <button data-type="array" onclick="app.setVisual('array')">📊 Массив</button>
+                        <button data-type="line" onclick="app.setVisual('line')">📏 Числовая прямая</button>
+                        <button data-type="fingers" onclick="app.setVisual('fingers')">🖐️ Метод пальцев</button>
                     </div>
                     <div id="visual-container"></div>
                     <p id="visual-desc"></p>
@@ -94,10 +113,10 @@
             </div>
         </div>
 
-        <!-- ЭКРАН ПРАКТИКИ -->
+        <!-- ПРАКТИКА -->
         <div id="screen-practice" class="screen">
             <div class="nav-bar">
-                <button class="btn-back" onclick="app.nav('screen-home')">⬅ Домой</button>
+                <button class="btn-back" onclick="app.nav('screen-home')">← Назад</button>
                 <h2>Тренировка</h2>
             </div>
             <div class="modes-grid">
@@ -108,27 +127,45 @@
                 </div>
                 <div class="mode-card" onclick="app.startPractice('time')">
                     <div class="icon">⏱️</div>
-                    <h3>На время</h3>
-                    <p>60 секунд на максимум</p>
+                    <h3>Марафон</h3>
+                    <p>Без ограничения по времени</p>
                 </div>
                 <div class="mode-card" onclick="app.startPractice('boss')">
                     <div class="icon">👹</div>
                     <h3>Босс</h3>
                     <p>10 примеров без ошибок</p>
                 </div>
+                <div class="mode-card" onclick="app.startPractice('fluency')">
+                    <div class="icon">🧠</div>
+                    <h3>Пойми</h3>
+                    <p>Стратегия + пример</p>
+                </div>
             </div>
         </div>
 
-        <!-- ЭКРАН ДОСТИЖЕНИЙ -->
+        <!-- ДОСТИЖЕНИЯ -->
         <div id="screen-achievements" class="screen">
             <div class="nav-bar">
-                <button class="btn-back" onclick="app.nav('screen-home')">⬅ Домой</button>
+                <button class="btn-back" onclick="app.nav('screen-home')">← Назад</button>
                 <h2>Зал Славы</h2>
             </div>
             <div id="achievements-list" class="ach-list"></div>
         </div>
 
     </div>
+    <!-- МОДАЛЬНОЕ ОКНО (онбординг / уведомления) -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div id="modal-box" class="modal-box">
+            <div id="modal-icon" class="modal-icon">🥷</div>
+            <h3 id="modal-title" class="modal-title">Заголовок</h3>
+            <p id="modal-text" class="modal-text">Текст</p>
+            <div class="modal-actions">
+                <button id="modal-btn" class="btn-main" onclick="app.tutorial.next()">Понятно!</button>
+                <button id="modal-skip" class="modal-skip" onclick="app.tutorial.skip()">Пропустить обучение</button>
+            </div>
+        </div>
+    </div>
+
     <script src="data.js"></script>
     <script src="script.js"></script>
 </body>
