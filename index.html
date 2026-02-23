@@ -5,29 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Математика Семпай | Обучение умножению</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
 
-        <!-- Падающая сакура -->
-        <div class="sakura-container" id="sakura"></div>
-
         <!-- ЭКРАН ПРИВЕТСТВИЯ -->
         <div id="screen-welcome" class="screen">
             <div class="welcome-wrapper">
-                <div class="ninja-mascot">
-                    <div class="ninja-body">
-                        <div class="ninja-eyes">
-                            <div class="ninja-eye left"></div>
-                            <div class="ninja-eye right"></div>
-                        </div>
-                    </div>
-                    <div class="ninja-glow"></div>
-                    <div class="ninja-band"></div>
-                </div>
+                <div class="mascot">⚽</div>
                 <h1 class="title">Математика Семпай!</h1>
-                <p class="subtitle">Путь ниндзя таблицы умножения</p>
+                <p class="subtitle">Путь чемпиона таблицы умножения</p>
 
                 <div class="welcome-speech">
                     <p>Привет! Я — <strong>Семпай</strong>, твой наставник по таблице умножения.</p>
@@ -35,7 +23,7 @@
                 </div>
 
                 <div class="welcome-input-group">
-                    <label for="name-input">Как тебя зовут, юный ниндзя?</label>
+                    <label for="name-input">Как тебя зовут, чемпион?</label>
                     <input type="text" id="name-input" placeholder="Введи своё имя..." maxlength="20" autocomplete="off">
                 </div>
 
@@ -45,21 +33,9 @@
 
         <!-- ГЛАВНЫЙ ЭКРАН -->
         <div id="screen-home" class="screen">
-            <div class="kanji-decor">
-                <span class="kanji">忍</span>
-                <span class="kanji-sub">ниндзя</span>
-            </div>
-            <div class="ninja-mascot small">
-                <div class="ninja-body">
-                    <div class="ninja-eyes">
-                        <div class="ninja-eye left"></div>
-                        <div class="ninja-eye right"></div>
-                    </div>
-                </div>
-                <div class="ninja-glow"></div>
-            </div>
+            <div class="mascot">⚽</div>
             <h1 class="title" id="home-greeting">Математика Семпай!</h1>
-            <p class="subtitle" id="home-subtitle">Путь ниндзя таблицы умножения</p>
+            <p class="subtitle" id="home-subtitle">Путь чемпиона таблицы умножения</p>
 
             <div class="stats-box">
                 <div class="stat">
@@ -180,7 +156,7 @@
     <!-- МОДАЛЬНОЕ ОКНО (онбординг / уведомления) -->
     <div id="modal-overlay" class="modal-overlay">
         <div id="modal-box" class="modal-box">
-            <div id="modal-icon" class="modal-icon">🥷</div>
+            <div id="modal-icon" class="modal-icon">⚽</div>
             <h3 id="modal-title" class="modal-title">Заголовок</h3>
             <p id="modal-text" class="modal-text">Текст</p>
             <div class="modal-actions">
@@ -192,22 +168,5 @@
 
     <script src="data.js"></script>
     <script src="script.js"></script>
-    <script>
-    // Падающая сакура
-    (function() {
-        const container = document.getElementById('sakura');
-        const petals = 15;
-        for (let i = 0; i < petals; i++) {
-            const petal = document.createElement('div');
-            petal.className = 'sakura-petal';
-            petal.style.left = Math.random() * 100 + '%';
-            petal.style.animationDelay = Math.random() * 8 + 's';
-            petal.style.animationDuration = (6 + Math.random() * 6) + 's';
-            petal.style.opacity = 0.3 + Math.random() * 0.5;
-            petal.style.fontSize = (10 + Math.random() * 8) + 'px';
-            container.appendChild(petal);
-        }
-    })();
-    </script>
 </body>
 </html>
