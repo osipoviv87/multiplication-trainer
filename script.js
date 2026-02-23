@@ -191,7 +191,7 @@ const app = {
         const num2 = Math.floor(Math.random() * 9) + 1;
         this.state.currentQ = { n1: mult, n2: num2, ans: mult * num2 };
 
-        document.getElementById('lesson-title').innerText = `Глава ${this.state.week}: ×${mult}`;
+        document.getElementById('lesson-title').innerText = `Глава ${this.state.week}: Умножение на ${mult}`;
         document.getElementById('q-n1').innerText = mult;
         document.getElementById('q-n2').innerText = num2;
         document.getElementById('answer-input').value = '';
@@ -213,7 +213,7 @@ const app = {
             const n = this.state.currentQ.n2;
             return {
                 strategy: `Приём «${s.name}»: ${s.formula(n)}`,
-                hint: `Стратегия для ×${mult}: ${s.name}`,
+                hint: `Стратегия для умножения на ${mult}: ${s.name}`,
                 fingerTip: ''
             };
         }
