@@ -573,14 +573,542 @@ const app = {
         }, 800);
     },
 
-    // ─── PRACTICE ───
+    // ─── PRACTICE SETUP ───
+    practiceSetup: { mode: '', selectedMults: [] },
+
+    getUnlockedMultipliers() {
+        const mults = new Set();
+        this.state.unlockedWeeks.forEach(weekId => {
+            const week = CURRICULUM.weeks.find(w => w.id === weekId);
+            if (week) week.multipliers.forEach(m => mults.add(m));
+        });
+        return [...mults].sort((a, b) => a - b);
+    },
+
     startPractice(mode) {
-        this.showModal(
-            '🔧',
-            'Скоро!',
-            `Режим «${mode}» ещё в разработке, ${this.state.playerName}! Пока тренируйся на Карте Приключений.`,
-            'Понятно!'
-        );
+        this.practiceSetup.mode = mode;
+        const unlocked = this.getUnlockedMultipliers();
+        this.practiceSetup.selectedMults = [...unlocked];
+
+        const titles = {
+            flash: '🃏 Карточки', time: '⏱️ Марафон',
+            boss: '👹 Босс', fluency: '🧠 Пойми'
+        };
+        const descs = {
+            flash: 'Переворачивай карточки и оценивай себя: «Знаю» или «Ещё учу». Карточки, которые ты ещё учишь, появятся снова.',
+            time: 'Решай примеры в своём темпе — без ограничений по времени. Завершай, когда захочешь.',
+            boss: 'Победи босса! Нужно дать 10 правильных ответов подряд. Одна ошибка — и босс восстанавливает здоровье!',
+            fluency: 'Разбери стратегию по шагам, пойми КАК она работает, а потом примени её на практике.'
+        };
+
+        document.getElementById('setup-title').textContent = titles[mode] || 'Тренировка';
+        document.getElementById('setup-desc').textContent = descs[mode] || '';
+
+        const picker = document.getElementById('mult-picker');
+        picker.innerHTML = '';
+        [2,3,4,5,6,7,8,9,10].forEach(m => {
+            const btn = document.createElement('button');
+            const isUnlocked = unlocked.includes(m);
+            btn.className = `mult-btn ${isUnlocked ? 'selected' : 'locked'}`;
+            btn.textContent = `×${m}`;
+            btn.disabled = !isUnlocked;
+            btn.dataset.mult = m;
+            if (isUnlocked) btn.onclick = () => this.toggleMult(m, btn);
+            picker.appendChild(btn);
+        });
+
+        this.nav('screen-practice-setup');
+    },
+
+    toggleMult(m, btn) {
+        const idx = this.practiceSetup.selectedMults.indexOf(m);
+        if (idx >= 0) {
+            this.practiceSetup.selectedMults.splice(idx, 1);
+            btn.classList.remove('selected');
+        } else {
+            this.practiceSetup.selectedMults.push(m);
+            btn.classList.add('selected');
+        }
+    },
+
+    startSelectedPractice() {
+        const { mode, selectedMults } = this.practiceSetup;
+        if (selectedMults.length === 0) {
+            this.showModal('⚠️', 'Выбери множители',
+                'Нужно выбрать хотя бы один множитель для тренировки!', 'Понятно!');
+            return;
+        }
+        const mults = [...selectedMults].sort((a, b) => a - b);
+        switch (mode) {
+            case 'flash': this.flash.start(mults); break;
+            case 'time': this.marathon.start(mults); break;
+            case 'boss': this.boss.start(mults); break;
+            case 'fluency': this.fluency.start(mults); break;
+        }
+    },
+
+    endPractice() {
+        if (document.getElementById('screen-marathon').classList.contains('active') && this.marathon.solved > 0) {
+            const acc = Math.round((this.marathon.correct / this.marathon.solved) * 100);
+            this.showModal('🏁', 'Марафон завершён!',
+                `Решено: ${this.marathon.solved}\nПравильных: ${this.marathon.correct}\nТочность: ${acc}%\nЛучшая серия: ${this.marathon.best}`,
+                'Супер!', () => this.nav('screen-practice'));
+            return;
+        }
+        this.nav('screen-practice');
+    },
+
+    // ─── 🃏 КАРТОЧКИ (Flash Cards) ───
+    // Научная основа: retrieval practice (Roediger & Karpicke, 2006),
+    // метакогнитивный мониторинг (Dunlosky & Rawson, 2012)
+    flash: {
+        deck: [],
+        currentCard: null,
+        knownCount: 0,
+
+        start(mults) {
+            this.deck = [];
+            mults.forEach(m => {
+                for (let n = 2; n <= 9; n++) {
+                    this.deck.push({ n1: m, n2: n, ans: m * n, known: false });
+                }
+            });
+            this.knownCount = 0;
+            app.nav('screen-flash');
+            document.getElementById('flash-buttons').classList.remove('visible');
+            this.showCard();
+        },
+
+        showCard() {
+            const remaining = this.deck.filter(c => !c.known);
+            if (remaining.length === 0) {
+                this.victory();
+                return;
+            }
+            this.currentCard = remaining[Math.floor(Math.random() * remaining.length)];
+            const { n1, n2, ans } = this.currentCard;
+
+            document.getElementById('flash-problem').textContent = `${n1} × ${n2} = ?`;
+            document.getElementById('flash-answer').textContent = ans;
+
+            const s = CURRICULUM.strategyByMult[n1];
+            document.getElementById('flash-strategy').textContent =
+                s ? `${s.name}: ${s.formula(n2)}` : `${n1} × ${n2} = ${ans}`;
+
+            document.getElementById('flash-card').classList.remove('flipped');
+            document.getElementById('flash-buttons').classList.remove('visible');
+
+            const pct = (this.knownCount / this.deck.length) * 100;
+            document.getElementById('flash-bar').style.width = pct + '%';
+            document.getElementById('flash-counter').textContent = `${this.knownCount}/${this.deck.length}`;
+            document.getElementById('flash-progress-text').textContent =
+                `Изучено: ${this.knownCount} / ${this.deck.length}`;
+        },
+
+        flip() {
+            if (document.getElementById('flash-card').classList.contains('flipped')) return;
+            document.getElementById('flash-card').classList.add('flipped');
+            document.getElementById('flash-buttons').classList.add('visible');
+        },
+
+        know() {
+            if (!this.currentCard) return;
+            this.currentCard.known = true;
+            this.knownCount++;
+            this.showCard();
+        },
+
+        again() {
+            this.showCard();
+        },
+
+        victory() {
+            app.showModal('🎉', 'Все карточки пройдены!',
+                `${app.state.playerName}, ты разобрал все ${this.deck.length} карточек! Отличная работа!`,
+                'Супер!', () => app.nav('screen-practice'));
+        }
+    },
+
+    // ─── ⏱️ МАРАФОН (Marathon) ───
+    // Научная основа: distributed practice (Cepeda et al., 2006),
+    // снижение тревожности без давления временем (Ashcraft & Moore, 2009)
+    marathon: {
+        solved: 0,
+        correct: 0,
+        streak: 0,
+        best: 0,
+        mults: [],
+        currentQ: null,
+        waiting: false,
+
+        start(mults) {
+            this.mults = mults;
+            this.solved = 0;
+            this.correct = 0;
+            this.streak = 0;
+            this.best = 0;
+            this.waiting = false;
+            app.nav('screen-marathon');
+            this.loadQ();
+        },
+
+        loadQ() {
+            this.waiting = false;
+            const m = this.mults[Math.floor(Math.random() * this.mults.length)];
+            const n = Math.floor(Math.random() * 9) + 1;
+            this.currentQ = { n1: m, n2: n, ans: m * n };
+
+            document.getElementById('marathon-n1').textContent = m;
+            document.getElementById('marathon-n2').textContent = n;
+            document.getElementById('marathon-input').value = '';
+            document.getElementById('marathon-feedback').textContent = '';
+            document.getElementById('marathon-feedback').className = 'feedback';
+            document.getElementById('marathon-input').focus();
+            this.updateStats();
+        },
+
+        check() {
+            if (this.waiting) return;
+            const val = parseInt(document.getElementById('marathon-input').value);
+            if (isNaN(val)) return;
+
+            const fb = document.getElementById('marathon-feedback');
+            this.solved++;
+            app.state.total++;
+
+            if (val === this.currentQ.ans) {
+                this.correct++;
+                this.streak++;
+                app.state.correct++;
+                app.state.streak = this.streak;
+                if (this.streak > this.best) this.best = this.streak;
+                if (this.streak > app.state.bestStreak) app.state.bestStreak = this.streak;
+
+                let msg;
+                if (app.state.wasWrong && this.streak === 1) msg = app.getMotivation('comebackAfterError');
+                else if (this.streak >= 10) msg = app.getMotivation('streak10');
+                else if (this.streak >= 5) msg = app.getMotivation('streak5');
+                else if (this.streak >= 3) msg = app.getMotivation('streak3');
+                else msg = app.getMotivation('correct');
+
+                app.state.wasWrong = false;
+                fb.textContent = `⚡ ${msg}`;
+                fb.className = 'feedback ok';
+                app.showEnergyBurst();
+
+                this.waiting = true;
+                setTimeout(() => this.loadQ(), 1000);
+            } else {
+                this.streak = 0;
+                app.state.streak = 0;
+                app.state.wasWrong = true;
+
+                const { n1, n2, ans } = this.currentQ;
+                const s = CURRICULUM.strategyByMult[n1];
+                let txt = `${app.getMotivation('wrong')}\nПравильный ответ: ${ans}`;
+                if (s) txt += `\n${s.name}: ${s.formula(n2)}`;
+                fb.textContent = txt;
+                fb.className = 'feedback err';
+
+                this.waiting = true;
+                setTimeout(() => this.loadQ(), 3000);
+            }
+            app.save();
+            app.updateStats();
+            app.checkAchievements();
+            this.updateStats();
+        },
+
+        updateStats() {
+            document.getElementById('marathon-solved').textContent = this.solved;
+            const acc = this.solved ? Math.round((this.correct / this.solved) * 100) + '%' : '0%';
+            document.getElementById('marathon-accuracy').textContent = acc;
+            document.getElementById('marathon-streak').textContent = this.streak;
+        }
+    },
+
+    // ─── 👹 БОСС (Boss Battle) ───
+    // Научная основа: desirable difficulty (Bjork, 1994),
+    // goal-setting theory (Locke & Latham, 2002),
+    // gamification + narrative framing (Deterding et al., 2011)
+    boss: {
+        hp: 10,
+        maxHp: 10,
+        streak: 0,
+        mults: [],
+        currentQ: null,
+        waiting: false,
+
+        start(mults) {
+            this.mults = mults;
+            this.hp = this.maxHp;
+            this.streak = 0;
+            this.waiting = false;
+            app.nav('screen-boss');
+
+            document.getElementById('boss-emoji').textContent = '👹';
+            document.getElementById('boss-taunt').textContent = 'Ха-ха! Попробуй победи меня!';
+            this.updateHP();
+            this.loadQ();
+        },
+
+        loadQ() {
+            this.waiting = false;
+            const m = this.mults[Math.floor(Math.random() * this.mults.length)];
+            const n = Math.floor(Math.random() * 9) + 1;
+            this.currentQ = { n1: m, n2: n, ans: m * n };
+
+            document.getElementById('boss-n1').textContent = m;
+            document.getElementById('boss-n2').textContent = n;
+            document.getElementById('boss-input').value = '';
+            document.getElementById('boss-feedback').textContent = '';
+            document.getElementById('boss-feedback').className = 'feedback';
+            document.getElementById('boss-input').focus();
+        },
+
+        check() {
+            if (this.waiting) return;
+            const val = parseInt(document.getElementById('boss-input').value);
+            if (isNaN(val)) return;
+
+            const fb = document.getElementById('boss-feedback');
+            app.state.total++;
+
+            if (val === this.currentQ.ans) {
+                app.state.correct++;
+                this.streak++;
+                this.hp--;
+                app.state.streak = this.streak;
+                if (this.streak > app.state.bestStreak) app.state.bestStreak = this.streak;
+
+                this.updateHP();
+                app.showEnergyBurst();
+
+                // Boss hit animation
+                const el = document.getElementById('boss-emoji');
+                el.classList.add('hit');
+                setTimeout(() => el.classList.remove('hit'), 500);
+
+                // Boss speed lines
+                this.triggerBossSpeedLines();
+
+                if (this.hp <= 0) {
+                    fb.textContent = '';
+                    this.victory();
+                } else {
+                    this.updateTaunt();
+                    fb.textContent = `⚔️ Удар! Осталось ${this.hp} HP!`;
+                    fb.className = 'feedback ok';
+                    this.waiting = true;
+                    setTimeout(() => this.loadQ(), 1000);
+                }
+            } else {
+                this.streak = 0;
+                app.state.streak = 0;
+                this.hp = this.maxHp;
+                this.updateHP();
+
+                const { n1, n2, ans } = this.currentQ;
+                const s = CURRICULUM.strategyByMult[n1];
+                let txt = `Правильный ответ: ${ans}`;
+                if (s) txt += `\n${s.name}: ${s.formula(n2)}`;
+                fb.textContent = `👹 Босс восстановил здоровье!\n${txt}`;
+                fb.className = 'feedback err';
+
+                document.getElementById('boss-emoji').textContent = '👹';
+                document.getElementById('boss-taunt').textContent = 'Ха-ха! Я снова в полной силе!';
+
+                this.waiting = true;
+                setTimeout(() => this.loadQ(), 3000);
+            }
+            app.save();
+            app.updateStats();
+            app.checkAchievements();
+        },
+
+        updateHP() {
+            const pct = (this.hp / this.maxHp) * 100;
+            const fill = document.getElementById('boss-hp-fill');
+            fill.style.width = pct + '%';
+            fill.classList.toggle('low', this.hp <= 3);
+            document.getElementById('boss-hp-text').textContent = `HP: ${this.hp} / ${this.maxHp}`;
+        },
+
+        updateTaunt() {
+            const el = document.getElementById('boss-taunt');
+            const emoji = document.getElementById('boss-emoji');
+            if (this.hp >= 8) {
+                el.textContent = 'Неплохо... но я ещё силён!';
+                emoji.textContent = '👹';
+            } else if (this.hp >= 5) {
+                el.textContent = 'Ой! Это было больно!';
+                emoji.textContent = '😤';
+            } else if (this.hp >= 3) {
+                el.textContent = 'Стой! Мне нужна передышка!';
+                emoji.textContent = '😰';
+            } else {
+                el.textContent = 'Нет! Я не хочу проигрывать!';
+                emoji.textContent = '😱';
+            }
+        },
+
+        triggerBossSpeedLines() {
+            const container = document.getElementById('boss-speed-lines');
+            if (!container) return;
+            container.classList.add('active');
+            container.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const line = document.createElement('div');
+                line.className = 'speed-line';
+                line.style.top = (15 + Math.random() * 70) + '%';
+                line.style.width = (60 + Math.random() * 120) + 'px';
+                line.style.animationDelay = (i * 50) + 'ms';
+                container.appendChild(line);
+            }
+            setTimeout(() => {
+                container.classList.remove('active');
+                container.innerHTML = '';
+            }, 800);
+        },
+
+        victory() {
+            document.getElementById('boss-emoji').textContent = '💀';
+            document.getElementById('boss-taunt').textContent = 'Нееееет...';
+            document.getElementById('boss-hp-fill').style.width = '0%';
+
+            setTimeout(() => {
+                app.showModal('🏆', 'Босс повержен!',
+                    `${app.state.playerName} победил босса!\n10 правильных ответов подряд — ты настоящий чемпион!`,
+                    'Победа!', () => app.nav('screen-practice'));
+            }, 600);
+        }
+    },
+
+    // ─── 🧠 ПОЙМИ (Understand / Fluency) ───
+    // Научная основа: conceptual understanding (Hiebert & Lefevre, 1986),
+    // стратегический подход (Brendefur, 2015), модель Брунера (iconic → symbolic)
+    fluency: {
+        mults: [],
+        multIdx: 0,
+        currentQ: null,
+
+        start(mults) {
+            this.mults = mults;
+            this.multIdx = 0;
+            app.nav('screen-fluency');
+            this.loadStrategy();
+        },
+
+        loadStrategy() {
+            const mult = this.mults[this.multIdx % this.mults.length];
+            const n = Math.floor(Math.random() * 8) + 2; // 2-9
+            this.currentQ = { n1: mult, n2: n, ans: mult * n };
+
+            const s = CURRICULUM.strategyByMult[mult];
+            document.getElementById('fluency-name').textContent = s ? s.name : `Умножение на ${mult}`;
+            document.getElementById('fluency-strategy').textContent = this.explain(mult, n);
+
+            // Build step-by-step
+            const stepsEl = document.getElementById('fluency-steps');
+            stepsEl.innerHTML = '';
+            this.getSteps(mult, n).forEach((txt, i) => {
+                const div = document.createElement('div');
+                div.className = 'fluency-step';
+                div.innerHTML = `<span class="step-num">${i + 1}</span><span class="step-text">${txt}</span>`;
+                stepsEl.appendChild(div);
+            });
+
+            document.getElementById('fluency-n1').textContent = mult;
+            document.getElementById('fluency-n2').textContent = n;
+            document.getElementById('fluency-input').value = '';
+            document.getElementById('fluency-feedback').textContent = '';
+            document.getElementById('fluency-feedback').className = 'feedback';
+            document.getElementById('fluency-input').focus();
+        },
+
+        explain(mult, n) {
+            switch (mult) {
+                case 2: return `Удвоение: сложи ${n} с самим собой. ${n} + ${n} = ?`;
+                case 3: return `Сначала удвой (${n} × 2 = ${n*2}), потом прибавь ${n}. Итого: ${n*2} + ${n} = ?`;
+                case 4: return `Двойное удвоение: ${n} × 2 = ${n*2}, потом ${n*2} × 2 = ?`;
+                case 5: return `Считай пятёрками, как минуты на часах: 5, 10, 15... Найди ${n}-ю отметку.`;
+                case 6: return `Умножь на 5, потом прибавь число: ${n} × 5 = ${n*5}, затем ${n*5} + ${n} = ?`;
+                case 7: return `Разбей на 5 + 2: ${n} × 5 = ${n*5}, ${n} × 2 = ${n*2}. Сложи: ${n*5} + ${n*2} = ?`;
+                case 8: return `Тройное удвоение: ${n}→${n*2}→${n*4}→?`;
+                case 9: return `Умножь на 10 и вычти число: ${n} × 10 = ${n*10}, затем ${n*10} − ${n} = ?`;
+                case 10: return `Просто допиши 0 к числу ${n}. Получается ${n}0.`;
+                default: return '';
+            }
+        },
+
+        getSteps(mult, n) {
+            switch (mult) {
+                case 2: return [
+                    `Возьми число <strong>${n}</strong>`,
+                    `Прибавь к самому себе: ${n} + ${n} = ...`
+                ];
+                case 3: return [
+                    `Удвой: ${n} × 2 = <strong>${n*2}</strong>`,
+                    `Прибавь ещё раз ${n}: ${n*2} + ${n} = ...`
+                ];
+                case 4: return [
+                    `Первое удвоение: ${n} × 2 = <strong>${n*2}</strong>`,
+                    `Второе удвоение: ${n*2} × 2 = ...`
+                ];
+                case 5: return [
+                    `Представь циферблат часов`,
+                    `Считай пятёрками: 5, 10, 15... до <strong>${n}-й</strong> отметки`
+                ];
+                case 6: return [
+                    `Умножь на 5: ${n} × 5 = <strong>${n*5}</strong>`,
+                    `Прибавь ${n}: ${n*5} + ${n} = ...`
+                ];
+                case 7: return [
+                    `${n} × 5 = <strong>${n*5}</strong>`,
+                    `${n} × 2 = <strong>${n*2}</strong>`,
+                    `Сложи: ${n*5} + ${n*2} = ...`
+                ];
+                case 8: return [
+                    `${n} × 2 = <strong>${n*2}</strong>`,
+                    `${n*2} × 2 = <strong>${n*4}</strong>`,
+                    `${n*4} × 2 = ...`
+                ];
+                case 9: return [
+                    `${n} × 10 = <strong>${n*10}</strong>`,
+                    `Вычти ${n}: ${n*10} − ${n} = ...`
+                ];
+                case 10: return [
+                    `Возьми число <strong>${n}</strong>`,
+                    `Допиши 0 справа: ${n}0`
+                ];
+                default: return [];
+            }
+        },
+
+        check() {
+            const val = parseInt(document.getElementById('fluency-input').value);
+            if (isNaN(val)) return;
+
+            const fb = document.getElementById('fluency-feedback');
+            app.state.total++;
+
+            if (val === this.currentQ.ans) {
+                app.state.correct++;
+                fb.textContent = `⚡ Правильно! Ты понимаешь стратегию!`;
+                fb.className = 'feedback ok';
+                app.showEnergyBurst();
+
+                this.multIdx++;
+                setTimeout(() => this.loadStrategy(), 1500);
+            } else {
+                fb.textContent = `Не совсем. Перечитай шаги и попробуй ещё раз!`;
+                fb.className = 'feedback err';
+                // Не переходим к следующей — ребёнок пробует снова
+            }
+            app.save();
+            app.updateStats();
+            app.checkAchievements();
+        }
     },
 
     // ─── SAVE/LOAD ───
@@ -605,10 +1133,13 @@ document.addEventListener('DOMContentLoaded', () => app.init());
 // Enter для ответа и для ввода имени
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        if (document.getElementById('screen-lesson').classList.contains('active')) {
-            app.check();
-        } else if (document.getElementById('screen-welcome').classList.contains('active')) {
-            app.submitName();
-        }
+        const active = (id) => document.getElementById(id).classList.contains('active');
+        if (active('screen-lesson')) app.check();
+        else if (active('screen-welcome')) app.submitName();
+        else if (active('screen-marathon')) app.marathon.check();
+        else if (active('screen-boss')) app.boss.check();
+        else if (active('screen-fluency')) app.fluency.check();
+        else if (active('screen-flash')) app.flash.flip();
+        else if (active('screen-practice-setup')) app.startSelectedPractice();
     }
 });

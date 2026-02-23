@@ -143,6 +143,128 @@
             </div>
         </div>
 
+        <!-- НАСТРОЙКА ТРЕНИРОВКИ (выбор множителей) -->
+        <div id="screen-practice-setup" class="screen">
+            <div class="nav-bar">
+                <button class="btn-back" onclick="app.nav('screen-practice')">← Назад</button>
+                <h2 id="setup-title">Настройка</h2>
+            </div>
+            <div class="setup-card">
+                <p class="setup-desc" id="setup-desc">Описание режима</p>
+                <h4 class="setup-label">Выбери множители:</h4>
+                <div class="mult-picker" id="mult-picker"></div>
+                <button class="btn-main" onclick="app.startSelectedPractice()">⚡ Начать!</button>
+            </div>
+        </div>
+
+        <!-- КАРТОЧКИ -->
+        <div id="screen-flash" class="screen">
+            <div class="nav-bar">
+                <button class="btn-back" onclick="app.endPractice()">← Назад</button>
+                <h2>🃏 Карточки</h2>
+                <span id="flash-counter" class="practice-counter">0/0</span>
+            </div>
+            <div class="flash-card-area">
+                <div class="flash-card" id="flash-card" onclick="app.flash.flip()">
+                    <div class="flash-front">
+                        <div class="flash-problem" id="flash-problem">7 × 8 = ?</div>
+                        <div class="flash-tap">Нажми, чтобы перевернуть</div>
+                    </div>
+                    <div class="flash-back">
+                        <div class="flash-answer" id="flash-answer">56</div>
+                        <div class="flash-strategy" id="flash-strategy">Разбей 5+2</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flash-buttons" id="flash-buttons">
+                <button class="btn-flash btn-again" onclick="app.flash.again()">🔄 Ещё учу</button>
+                <button class="btn-flash btn-know" onclick="app.flash.know()">✅ Знаю!</button>
+            </div>
+            <div class="flash-progress">
+                <div class="bar"><div id="flash-bar" class="fill"></div></div>
+                <span id="flash-progress-text">Изучено: 0 / 0</span>
+            </div>
+        </div>
+
+        <!-- МАРАФОН -->
+        <div id="screen-marathon" class="screen">
+            <div class="nav-bar">
+                <button class="btn-back" onclick="app.endPractice()">← Завершить</button>
+                <h2>⏱️ Марафон</h2>
+                <div class="streak">🔥 <span id="marathon-streak">0</span></div>
+            </div>
+            <div class="marathon-stats">
+                <div class="stat">
+                    <span class="stat-val" id="marathon-solved">0</span>
+                    <span class="stat-label">Решено</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" id="marathon-accuracy">0%</span>
+                    <span class="stat-label">Точность</span>
+                </div>
+            </div>
+            <div class="task-box">
+                <div class="equation">
+                    <span id="marathon-n1">2</span> × <span id="marathon-n2">3</span> = <input type="number" id="marathon-input" autocomplete="off">
+                </div>
+                <div class="controls">
+                    <button class="btn-main" onclick="app.marathon.check()">Ответить</button>
+                </div>
+                <div id="marathon-feedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <!-- БОСС -->
+        <div id="screen-boss" class="screen">
+            <div class="speed-lines" id="boss-speed-lines"></div>
+            <div class="nav-bar">
+                <button class="btn-back" onclick="app.endPractice()">← Отступить</button>
+                <h2>👹 Битва с Боссом</h2>
+            </div>
+            <div class="boss-arena">
+                <div class="boss-emoji" id="boss-emoji">👹</div>
+                <div class="boss-hp">
+                    <div class="boss-hp-bar">
+                        <div class="boss-hp-fill" id="boss-hp-fill"></div>
+                    </div>
+                    <span id="boss-hp-text">HP: 10 / 10</span>
+                </div>
+                <div class="boss-taunt" id="boss-taunt">Ха-ха! Попробуй победи меня!</div>
+            </div>
+            <div class="task-box">
+                <div class="equation">
+                    <span id="boss-n1">2</span> × <span id="boss-n2">3</span> = <input type="number" id="boss-input" autocomplete="off">
+                </div>
+                <div class="controls">
+                    <button class="btn-main" onclick="app.boss.check()">⚔️ Атаковать!</button>
+                </div>
+                <div id="boss-feedback" class="feedback"></div>
+            </div>
+        </div>
+
+        <!-- ПОЙМИ (стратегия + пример) -->
+        <div id="screen-fluency" class="screen">
+            <div class="nav-bar">
+                <button class="btn-back" onclick="app.endPractice()">← Назад</button>
+                <h2>🧠 Пойми</h2>
+            </div>
+            <div class="strategy-box">
+                <h4>📖 Стратегия: <span id="fluency-name">Удвоение</span></h4>
+                <p id="fluency-strategy">...</p>
+            </div>
+            <div class="fluency-steps" id="fluency-steps"></div>
+            <div class="task-box">
+                <p class="fluency-prompt">Теперь примени стратегию:</p>
+                <div class="equation">
+                    <span id="fluency-n1">2</span> × <span id="fluency-n2">3</span> = <input type="number" id="fluency-input" autocomplete="off">
+                </div>
+                <div class="controls">
+                    <button class="btn-main" onclick="app.fluency.check()">Ответить</button>
+                </div>
+                <div id="fluency-feedback" class="feedback"></div>
+            </div>
+        </div>
+
         <!-- ДОСТИЖЕНИЯ -->
         <div id="screen-achievements" class="screen">
             <div class="nav-bar">
