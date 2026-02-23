@@ -221,14 +221,9 @@ const app = {
     },
 
     updateVisualDesc(mult) {
-        const { n1, n2, ans } = this.state.currentQ;
+        const { n1, n2 } = this.state.currentQ;
         const desc = document.getElementById('visual-desc');
-        const s = CURRICULUM.strategyByMult[n1];
-        if (s) {
-            desc.innerText = `${n1} × ${n2} → ${s.formula(n2)}`;
-        } else {
-            desc.innerText = `${n1} × ${n2} = ${ans}`;
-        }
+        desc.innerText = `${n1} × ${n2} = ?`;
     },
 
     // ─── VISUALS ───
@@ -267,7 +262,7 @@ const app = {
 
         const label = document.createElement('div');
         label.style.cssText = 'grid-column: 1 / -1; text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-top: 8px;';
-        label.innerHTML = `<span style="color:var(--primary)">${rows} строк</span> × <span style="color:var(--secondary)">${cols} столбцов</span> = <strong style="color:var(--text)">${rows * cols}</strong>`;
+        label.innerHTML = `<span style="color:var(--primary)">${rows} строк</span> × <span style="color:var(--secondary)">${cols} столбцов</span> = <strong style="color:var(--text)">?</strong>`;
         container.appendChild(label);
     },
 
@@ -286,7 +281,8 @@ const app = {
 
             const num = document.createElement('div');
             num.className = `nl-num ${i === steps ? 'final' : ''}`;
-            num.textContent = n2 * i;
+            // Последний шаг — скрываем ответ
+            num.textContent = i === steps ? '?' : n2 * i;
             step.appendChild(num);
 
             if (i < steps) {
@@ -302,7 +298,7 @@ const app = {
 
         const label = document.createElement('div');
         label.className = 'nl-label';
-        label.innerHTML = `${n1} скачков по <strong>${n2}</strong> = <strong style="color:var(--primary)">${n1 * n2}</strong>`;
+        label.innerHTML = `${n1} скачков по <strong>${n2}</strong> = <strong style="color:var(--primary)">?</strong>`;
         container.appendChild(label);
     },
 
@@ -362,7 +358,7 @@ const app = {
 
             const formula = document.createElement('div');
             formula.className = 'fingers-formula';
-            formula.innerHTML = `<span class="tens">${tens}0</span> + <span class="ones">${ones}</span> = <strong>${tens * 10 + ones}</strong>`;
+            formula.innerHTML = `<span class="tens">${tens}0</span> + <span class="ones">${ones}</span> = <strong>?</strong>`;
             container.appendChild(formula);
 
         } else {
@@ -415,6 +411,8 @@ const app = {
             this.state.wasWrong = false;
             feedback.innerText = `⚡ ${msg}`;
             feedback.className = "feedback ok";
+            this.showEnergyBurst();
+            this.triggerSpeedLines();
 
             // Unlock next week after 10 correct in this lesson
             if (this.state.lessonIdx >= 9 && this.state.week < 4) {
@@ -546,6 +544,33 @@ const app = {
         popup.innerHTML = `<div style="font-size:2.2rem">${ach.icon}</div><strong style="color:var(--primary)">🏆 ${ach.name}!</strong><br><small style="color:var(--text-dim)">${ach.desc}</small>`;
         document.body.appendChild(popup);
         setTimeout(() => popup.remove(), 3000);
+    },
+
+    // ─── ANIME EFFECTS ───
+    showEnergyBurst() {
+        const burst = document.createElement('div');
+        burst.className = 'energy-burst';
+        document.body.appendChild(burst);
+        setTimeout(() => burst.remove(), 600);
+    },
+
+    triggerSpeedLines() {
+        const container = document.getElementById('speed-lines');
+        if (!container) return;
+        container.classList.add('active');
+        container.innerHTML = '';
+        for (let i = 0; i < 6; i++) {
+            const line = document.createElement('div');
+            line.className = 'speed-line';
+            line.style.top = (15 + Math.random() * 70) + '%';
+            line.style.width = (60 + Math.random() * 120) + 'px';
+            line.style.animationDelay = (i * 50) + 'ms';
+            container.appendChild(line);
+        }
+        setTimeout(() => {
+            container.classList.remove('active');
+            container.innerHTML = '';
+        }, 800);
     },
 
     // ─── PRACTICE ───
