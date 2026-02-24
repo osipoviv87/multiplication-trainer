@@ -847,7 +847,7 @@ const app = {
                     this.seenMults.add(m);
                     const s = CURRICULUM.strategyByMult[m];
                     if (s) {
-                        hintEl.textContent = `💡 Помни: ×${m} — ${s.name}`;
+                        hintEl.innerHTML = `<span class="hint-emoji">💡</span> Помни: ×${m} — ${s.name}`;
                         hintEl.style.display = 'block';
                     }
                 } else {

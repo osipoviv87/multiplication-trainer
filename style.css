@@ -914,6 +914,12 @@ button:active { transform: scale(0.97); }
     text-shadow: 0 0 10px rgba(241, 15, 177, 0.6), 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
+.hint-emoji {
+    font-size: 1.8rem;
+    margin-right: 8px;
+    display: inline-block;
+}
+
 /* === MARATHON === */
 .marathon-stats {
     display: flex;
