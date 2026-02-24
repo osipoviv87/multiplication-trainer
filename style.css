@@ -417,6 +417,21 @@ button:active { transform: scale(0.97); }
 }
 #answer-input:focus { border-color: var(--secondary); box-shadow: 0 0 15px var(--secondary-glow), 0 0 5px var(--primary-glow); }
 
+#marathon-input {
+    width: 90px;
+    padding: 10px;
+    font-size: 2.5rem;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.8);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    outline: none;
+    color: var(--primary);
+    font-weight: 900;
+    font-family: inherit;
+}
+#marathon-input:focus { border-color: var(--secondary); box-shadow: 0 0 15px var(--secondary-glow), 0 0 5px var(--primary-glow); }
+
 .controls { display: flex; gap: 10px; justify-content: center; align-items: center; }
 .controls .btn-main { width: auto; padding: 12px 30px; }
 
