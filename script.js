@@ -70,7 +70,7 @@ const app = {
             if (t === 0) sub.textContent = 'Готов начать путь ниндзя?';
             else if (t < 50) sub.textContent = `Хорошее начало, ${name}!`;
             else if (t < 100) sub.textContent = `Ты настоящий боец, ${name}!`;
-            else sub.textContent = `${name} — легенда Математики Семпай!`;
+            else sub.textContent = `${name} — легенда Математики Исаги!`;
         }
     },
 
@@ -586,6 +586,7 @@ const app = {
     },
 
     startPractice(mode) {
+        console.log('[Practice] startPractice:', mode);
         this.practiceSetup.mode = mode;
         const allMults = [2,3,4,5,6,7,8,9,10];
         this.practiceSetup.selectedMults = [...allMults];
@@ -595,10 +596,10 @@ const app = {
             boss: '👹 Босс', fluency: '🧠 Пойми'
         };
         const descs = {
-            flash: 'Переворачивай карточки и оценивай себя: «Знаю» или «Ещё учу». Карточки, которые ты ещё учишь, появятся снова.',
-            time: 'Решай примеры в своём темпе — без ограничений по времени. Завершай, когда захочешь.',
-            boss: 'Победи босса! Нужно дать 10 правильных ответов подряд. Одна ошибка — и босс восстанавливает здоровье!',
-            fluency: 'Разбери стратегию по шагам, пойми КАК она работает, а потом примени её на практике.'
+            flash: 'Переворачивай карточки и оценивай себя: «Знаю» или «Ещё учу». Карточки, которые ты ещё учишь, появятся чаще.',
+            time: 'Решай примеры в своём темпе — без ограничений. При первом появлении множителя увидишь подсказку стратегии.',
+            boss: 'Победи босса! 10 правильных ответов подряд. Одна ошибка — и босс восстанавливает здоровье! Но ты увидишь разбор.',
+            fluency: 'Пойми стратегию по шагам, примени её на практике. Ошибёшься — попробуешь ещё раз, пока не поймёшь.'
         };
 
         document.getElementById('setup-title').textContent = titles[mode] || 'Тренировка';
@@ -631,21 +632,28 @@ const app = {
 
     startSelectedPractice() {
         const { mode, selectedMults } = this.practiceSetup;
+        console.log('[Practice] startSelectedPractice:', mode, 'mults:', selectedMults);
         if (selectedMults.length === 0) {
             this.showModal('⚠️', 'Выбери множители',
                 'Нужно выбрать хотя бы один множитель для тренировки!', 'Понятно!');
             return;
         }
         const mults = [...selectedMults].sort((a, b) => a - b);
-        switch (mode) {
-            case 'flash': this.flash.start(mults); break;
-            case 'time': this.marathon.start(mults); break;
-            case 'boss': this.boss.start(mults); break;
-            case 'fluency': this.fluency.start(mults); break;
+        try {
+            switch (mode) {
+                case 'flash': this.flash.start(mults); break;
+                case 'time': this.marathon.start(mults); break;
+                case 'boss': this.boss.start(mults); break;
+                case 'fluency': this.fluency.start(mults); break;
+                default: console.error('[Practice] Unknown mode:', mode);
+            }
+        } catch (e) {
+            console.error('[Practice] Error starting mode:', mode, e);
         }
     },
 
     endPractice() {
+        // Итог марафона
         if (document.getElementById('screen-marathon').classList.contains('active') && this.marathon.solved > 0) {
             const acc = Math.round((this.marathon.correct / this.marathon.solved) * 100);
             this.showModal('🏁', 'Марафон завершён!',
@@ -653,22 +661,48 @@ const app = {
                 'Супер!', () => this.nav('screen-practice'));
             return;
         }
+        // Итог босса (если уходит не победив)
+        if (document.getElementById('screen-boss').classList.contains('active') && this.boss.totalAttempts > 0) {
+            this.showModal('🏃', 'Отступление...',
+                `Попыток: ${this.boss.totalAttempts}\nОшибок: ${this.boss.totalErrors}\nЛучшая серия: ${this.boss.streak}\nБосс не побеждён — попробуй ещё!`,
+                'Ладно!', () => this.nav('screen-practice'));
+            return;
+        }
         this.nav('screen-practice');
     },
 
+    // Общая функция: пошаговое объяснение стратегии
+    getStepByStep(mult, n) {
+        const ans = mult * n;
+        switch (mult) {
+            case 2: return `Удвоение: ${n} + ${n} = ${ans}`;
+            case 3: return `Удвой + прибавь: ${n}×2 = ${n*2}, потом ${n*2} + ${n} = ${ans}`;
+            case 4: return `Двойное удвоение: ${n}×2 = ${n*2}, потом ${n*2}×2 = ${ans}`;
+            case 5: return `Пятёрки (часы): ${n}-я минутная отметка = ${ans}`;
+            case 6: return `×5 + число: ${n}×5 = ${n*5}, потом ${n*5} + ${n} = ${ans}`;
+            case 7: return `Разбей 5+2: ${n}×5 = ${n*5}, ${n}×2 = ${n*2}, сложи ${n*5}+${n*2} = ${ans}`;
+            case 8: return `Тройное удвоение: ${n}→${n*2}→${n*4}→${ans}`;
+            case 9: return `×10 − число: ${n}×10 = ${n*10}, потом ${n*10} − ${n} = ${ans}`;
+            case 10: return `Допиши 0: ${n}0 = ${ans}`;
+            default: return `${mult} × ${n} = ${ans}`;
+        }
+    },
+
     // ─── 🃏 КАРТОЧКИ (Flash Cards) ───
-    // Научная основа: retrieval practice (Roediger & Karpicke, 2006),
-    // метакогнитивный мониторинг (Dunlosky & Rawson, 2012)
+    // Научная основа: retrieval practice + метакогнитивный мониторинг + spaced repetition
     flash: {
         deck: [],
         currentCard: null,
         knownCount: 0,
+        milestoneShown: {},
 
         start(mults) {
+            console.log('[Flash] Starting with', mults.length, 'multipliers');
             this.deck = [];
+            this.milestoneShown = {};
             mults.forEach(m => {
                 for (let n = 2; n <= 9; n++) {
-                    this.deck.push({ n1: m, n2: n, ans: m * n, known: false });
+                    this.deck.push({ n1: m, n2: n, ans: m * n, known: false, againCount: 0 });
                 }
             });
             this.knownCount = 0;
@@ -683,19 +717,32 @@ const app = {
                 this.victory();
                 return;
             }
-            this.currentCard = remaining[Math.floor(Math.random() * remaining.length)];
+
+            // Weighted selection: карточки с «Ещё учу» появляются в 3 раза чаще
+            const weighted = [];
+            remaining.forEach(c => {
+                const weight = c.againCount > 0 ? 3 : 1;
+                for (let i = 0; i < weight; i++) weighted.push(c);
+            });
+            this.currentCard = weighted[Math.floor(Math.random() * weighted.length)];
             const { n1, n2, ans } = this.currentCard;
 
+            // Лицевая сторона: пример + название стратегии
             document.getElementById('flash-problem').textContent = `${n1} × ${n2} = ?`;
-            document.getElementById('flash-answer').textContent = ans;
-
             const s = CURRICULUM.strategyByMult[n1];
-            document.getElementById('flash-strategy').textContent =
-                s ? `${s.name}: ${s.formula(n2)}` : `${n1} × ${n2} = ${ans}`;
+            const hintEl = document.getElementById('flash-hint');
+            if (hintEl) {
+                hintEl.textContent = s ? `Стратегия: ${s.name}` : '';
+            }
+
+            // Обратная сторона: ответ + пошаговый разбор
+            document.getElementById('flash-answer').textContent = ans;
+            document.getElementById('flash-strategy').textContent = app.getStepByStep(n1, n2);
 
             document.getElementById('flash-card').classList.remove('flipped');
             document.getElementById('flash-buttons').classList.remove('visible');
 
+            // Прогресс
             const pct = (this.knownCount / this.deck.length) * 100;
             document.getElementById('flash-bar').style.width = pct + '%';
             document.getElementById('flash-counter').textContent = `${this.knownCount}/${this.deck.length}`;
@@ -713,23 +760,43 @@ const app = {
             if (!this.currentCard) return;
             this.currentCard.known = true;
             this.knownCount++;
+            this.checkMilestone();
             this.showCard();
         },
 
         again() {
+            if (this.currentCard) this.currentCard.againCount++;
             this.showCard();
         },
 
+        checkMilestone() {
+            const pct = Math.round((this.knownCount / this.deck.length) * 100);
+            const milestones = [25, 50, 75];
+            for (const m of milestones) {
+                if (pct >= m && !this.milestoneShown[m]) {
+                    this.milestoneShown[m] = true;
+                    const msgs = {
+                        25: `Четверть пройдена! ${this.knownCount} из ${this.deck.length} — отличный старт!`,
+                        50: `Половина! ${this.knownCount} карточек изучено — ты на верном пути!`,
+                        75: `Три четверти! Финиш уже близко — осталось ${this.deck.length - this.knownCount}!`
+                    };
+                    app.showModal('🌟', `${m}% готово!`, msgs[m], 'Продолжить!');
+                    break;
+                }
+            }
+        },
+
         victory() {
-            app.showModal('🎉', 'Все карточки пройдены!',
-                `${app.state.playerName}, ты разобрал все ${this.deck.length} карточек! Отличная работа!`,
-                'Супер!', () => app.nav('screen-practice'));
+            const againTotal = this.deck.reduce((sum, c) => sum + c.againCount, 0);
+            let msg = `${app.state.playerName}, ты разобрал все ${this.deck.length} карточек!`;
+            if (againTotal === 0) msg += '\nИ ни одна не вызвала затруднений — ты мастер!';
+            else msg += `\nКарточек на повтор: ${againTotal} — это нормально, повторение укрепляет память!`;
+            app.showModal('🎉', 'Все карточки пройдены!', msg, 'Супер!', () => app.nav('screen-practice'));
         }
     },
 
     // ─── ⏱️ МАРАФОН (Marathon) ───
-    // Научная основа: distributed practice (Cepeda et al., 2006),
-    // снижение тревожности без давления временем (Ashcraft & Moore, 2009)
+    // Научная основа: distributed practice + снижение тревожности без давления временем
     marathon: {
         solved: 0,
         correct: 0,
@@ -737,30 +804,57 @@ const app = {
         best: 0,
         mults: [],
         currentQ: null,
+        lastQ: null,
+        seenMults: null,
         waiting: false,
 
         start(mults) {
+            console.log('[Marathon] Starting with', mults.length, 'multipliers');
             this.mults = mults;
             this.solved = 0;
             this.correct = 0;
             this.streak = 0;
             this.best = 0;
             this.waiting = false;
+            this.lastQ = null;
+            this.seenMults = new Set();
             app.nav('screen-marathon');
             this.loadQ();
         },
 
         loadQ() {
             this.waiting = false;
-            const m = this.mults[Math.floor(Math.random() * this.mults.length)];
-            const n = Math.floor(Math.random() * 9) + 1;
+            let m, n;
+            // Избегаем повторов: не даём тот же пример дважды подряд
+            do {
+                m = this.mults[Math.floor(Math.random() * this.mults.length)];
+                n = Math.floor(Math.random() * 8) + 2; // 2-9 (×1 слишком легко)
+            } while (this.lastQ && this.lastQ.n1 === m && this.lastQ.n2 === n);
+
             this.currentQ = { n1: m, n2: n, ans: m * n };
+            this.lastQ = this.currentQ;
 
             document.getElementById('marathon-n1').textContent = m;
             document.getElementById('marathon-n2').textContent = n;
             document.getElementById('marathon-input').value = '';
             document.getElementById('marathon-feedback').textContent = '';
             document.getElementById('marathon-feedback').className = 'feedback';
+
+            // Подсказка стратегии при первом появлении множителя
+            const hintEl = document.getElementById('marathon-hint');
+            if (hintEl) {
+                if (!this.seenMults.has(m)) {
+                    this.seenMults.add(m);
+                    const s = CURRICULUM.strategyByMult[m];
+                    if (s) {
+                        hintEl.textContent = `💡 Помни: ×${m} — ${s.name}`;
+                        hintEl.style.display = 'block';
+                    }
+                } else {
+                    hintEl.style.display = 'none';
+                }
+            }
+
             document.getElementById('marathon-input').focus();
             this.updateStats();
         },
@@ -773,6 +867,10 @@ const app = {
             const fb = document.getElementById('marathon-feedback');
             this.solved++;
             app.state.total++;
+
+            // Скрываем хинт после ответа
+            const hintEl = document.getElementById('marathon-hint');
+            if (hintEl) hintEl.style.display = 'none';
 
             if (val === this.currentQ.ans) {
                 this.correct++;
@@ -794,6 +892,16 @@ const app = {
                 fb.className = 'feedback ok';
                 app.showEnergyBurst();
 
+                // Веха каждые 10 примеров
+                if (this.solved % 10 === 0) {
+                    const acc = Math.round((this.correct / this.solved) * 100);
+                    setTimeout(() => {
+                        app.showModal('📊', `${this.solved} примеров!`,
+                            `Решено: ${this.solved}\nТочность: ${acc}%\nЛучшая серия: ${this.best}\n\nПродолжай в том же духе!`,
+                            'Дальше!');
+                    }, 500);
+                }
+
                 this.waiting = true;
                 setTimeout(() => this.loadQ(), 1000);
             } else {
@@ -801,15 +909,14 @@ const app = {
                 app.state.streak = 0;
                 app.state.wasWrong = true;
 
-                const { n1, n2, ans } = this.currentQ;
-                const s = CURRICULUM.strategyByMult[n1];
-                let txt = `${app.getMotivation('wrong')}\nПравильный ответ: ${ans}`;
-                if (s) txt += `\n${s.name}: ${s.formula(n2)}`;
+                const { n1, n2 } = this.currentQ;
+                // Пошаговое объяснение вместо просто формулы
+                let txt = `${app.getMotivation('wrong')}\n${app.getStepByStep(n1, n2)}`;
                 fb.textContent = txt;
                 fb.className = 'feedback err';
 
                 this.waiting = true;
-                setTimeout(() => this.loadQ(), 3000);
+                setTimeout(() => this.loadQ(), 3500);
             }
             app.save();
             app.updateStats();
@@ -826,9 +933,7 @@ const app = {
     },
 
     // ─── 👹 БОСС (Boss Battle) ───
-    // Научная основа: desirable difficulty (Bjork, 1994),
-    // goal-setting theory (Locke & Latham, 2002),
-    // gamification + narrative framing (Deterding et al., 2011)
+    // Научная основа: desirable difficulty + gamification + narrative framing
     boss: {
         hp: 10,
         maxHp: 10,
@@ -836,16 +941,27 @@ const app = {
         mults: [],
         currentQ: null,
         waiting: false,
+        totalAttempts: 0,
+        totalErrors: 0,
+
+        pickTaunt(category) {
+            const arr = (typeof BOSS_TAUNTS !== 'undefined') && BOSS_TAUNTS[category];
+            if (!arr || arr.length === 0) return '';
+            return arr[Math.floor(Math.random() * arr.length)];
+        },
 
         start(mults) {
+            console.log('[Boss] Starting with', mults.length, 'multipliers');
             this.mults = mults;
             this.hp = this.maxHp;
             this.streak = 0;
             this.waiting = false;
+            this.totalAttempts = 0;
+            this.totalErrors = 0;
             app.nav('screen-boss');
 
             document.getElementById('boss-emoji').textContent = '👹';
-            document.getElementById('boss-taunt').textContent = 'Ха-ха! Попробуй победи меня!';
+            document.getElementById('boss-taunt').textContent = this.pickTaunt('intro');
             this.updateHP();
             this.loadQ();
         },
@@ -853,7 +969,7 @@ const app = {
         loadQ() {
             this.waiting = false;
             const m = this.mults[Math.floor(Math.random() * this.mults.length)];
-            const n = Math.floor(Math.random() * 9) + 1;
+            const n = Math.floor(Math.random() * 8) + 2; // 2-9
             this.currentQ = { n1: m, n2: n, ans: m * n };
 
             document.getElementById('boss-n1').textContent = m;
@@ -871,6 +987,7 @@ const app = {
 
             const fb = document.getElementById('boss-feedback');
             app.state.total++;
+            this.totalAttempts++;
 
             if (val === this.currentQ.ans) {
                 app.state.correct++;
@@ -886,8 +1003,6 @@ const app = {
                 const el = document.getElementById('boss-emoji');
                 el.classList.add('hit');
                 setTimeout(() => el.classList.remove('hit'), 500);
-
-                // Boss speed lines
                 this.triggerBossSpeedLines();
 
                 if (this.hp <= 0) {
@@ -895,29 +1010,33 @@ const app = {
                     this.victory();
                 } else {
                     this.updateTaunt();
-                    fb.textContent = `⚔️ Удар! Осталось ${this.hp} HP!`;
+                    // Фразы для серий ударов
+                    let streakMsg = `⚔️ Удар! Осталось ${this.hp} HP!`;
+                    if (this.streak === 7) streakMsg = `⚔️ ${this.pickTaunt('playerStreak7')}`;
+                    else if (this.streak === 5) streakMsg = `⚔️ ${this.pickTaunt('playerStreak5')}`;
+                    else if (this.streak === 3) streakMsg = `⚔️ ${this.pickTaunt('playerStreak3')}`;
+                    fb.textContent = streakMsg;
                     fb.className = 'feedback ok';
                     this.waiting = true;
                     setTimeout(() => this.loadQ(), 1000);
                 }
             } else {
                 this.streak = 0;
+                this.totalErrors++;
                 app.state.streak = 0;
                 this.hp = this.maxHp;
                 this.updateHP();
 
-                const { n1, n2, ans } = this.currentQ;
-                const s = CURRICULUM.strategyByMult[n1];
-                let txt = `Правильный ответ: ${ans}`;
-                if (s) txt += `\n${s.name}: ${s.formula(n2)}`;
-                fb.textContent = `👹 Босс восстановил здоровье!\n${txt}`;
+                const { n1, n2 } = this.currentQ;
+                // Пошаговый разбор вместо просто ответа
+                fb.textContent = `👹 ${this.pickTaunt('healed')}\n${app.getStepByStep(n1, n2)}`;
                 fb.className = 'feedback err';
 
                 document.getElementById('boss-emoji').textContent = '👹';
-                document.getElementById('boss-taunt').textContent = 'Ха-ха! Я снова в полной силе!';
+                document.getElementById('boss-taunt').textContent = this.pickTaunt('healed');
 
                 this.waiting = true;
-                setTimeout(() => this.loadQ(), 3000);
+                setTimeout(() => this.loadQ(), 3500);
             }
             app.save();
             app.updateStats();
@@ -935,19 +1054,13 @@ const app = {
         updateTaunt() {
             const el = document.getElementById('boss-taunt');
             const emoji = document.getElementById('boss-emoji');
-            if (this.hp >= 8) {
-                el.textContent = 'Неплохо... но я ещё силён!';
-                emoji.textContent = '👹';
-            } else if (this.hp >= 5) {
-                el.textContent = 'Ой! Это было больно!';
-                emoji.textContent = '😤';
-            } else if (this.hp >= 3) {
-                el.textContent = 'Стой! Мне нужна передышка!';
-                emoji.textContent = '😰';
-            } else {
-                el.textContent = 'Нет! Я не хочу проигрывать!';
-                emoji.textContent = '😱';
-            }
+            let category, emojiChar;
+            if (this.hp >= 8) { category = 'hp_high'; emojiChar = '👹'; }
+            else if (this.hp >= 5) { category = 'hp_mid'; emojiChar = '😤'; }
+            else if (this.hp >= 3) { category = 'hp_low'; emojiChar = '😰'; }
+            else { category = 'hp_critical'; emojiChar = '😱'; }
+            el.textContent = this.pickTaunt(category);
+            emoji.textContent = emojiChar;
         },
 
         triggerBossSpeedLines() {
@@ -975,38 +1088,61 @@ const app = {
             document.getElementById('boss-hp-fill').style.width = '0%';
 
             setTimeout(() => {
-                app.showModal('🏆', 'Босс повержен!',
-                    `${app.state.playerName} победил босса!\n10 правильных ответов подряд — ты настоящий чемпион!`,
+                let msg = `${app.state.playerName} победил босса!\n10 правильных ответов подряд!`;
+                msg += `\n\nПопыток: ${this.totalAttempts}`;
+                if (this.totalErrors === 0) msg += '\nБез единой ошибки — идеально!';
+                else msg += `\nОшибок: ${this.totalErrors} — но ты не сдался!`;
+                app.showModal('🏆', 'Босс повержен!', msg,
                     'Победа!', () => app.nav('screen-practice'));
             }, 600);
         }
     },
 
     // ─── 🧠 ПОЙМИ (Understand / Fluency) ───
-    // Научная основа: conceptual understanding (Hiebert & Lefevre, 1986),
-    // стратегический подход (Brendefur, 2015), модель Брунера (iconic → symbolic)
+    // Научная основа: conceptual understanding + стратегический подход + модель Брунера
     fluency: {
         mults: [],
         multIdx: 0,
         currentQ: null,
+        totalCorrect: 0,
+        totalAttempts: 0,
 
         start(mults) {
+            console.log('[Fluency] Starting with', mults.length, 'multipliers');
             this.mults = mults;
             this.multIdx = 0;
+            this.totalCorrect = 0;
+            this.totalAttempts = 0;
             app.nav('screen-fluency');
+            this.updateCounter();
             this.loadStrategy();
         },
 
+        updateCounter() {
+            const el = document.getElementById('fluency-counter');
+            if (el) {
+                const current = Math.min(this.multIdx + 1, this.mults.length);
+                el.textContent = `${current}/${this.mults.length}`;
+            }
+        },
+
         loadStrategy() {
-            const mult = this.mults[this.multIdx % this.mults.length];
+            // Проверяем завершение — все множители пройдены
+            if (this.multIdx >= this.mults.length) {
+                this.victory();
+                return;
+            }
+
+            const mult = this.mults[this.multIdx];
             const n = Math.floor(Math.random() * 8) + 2; // 2-9
             this.currentQ = { n1: mult, n2: n, ans: mult * n };
+            this.updateCounter();
 
             const s = CURRICULUM.strategyByMult[mult];
             document.getElementById('fluency-name').textContent = s ? s.name : `Умножение на ${mult}`;
             document.getElementById('fluency-strategy').textContent = this.explain(mult, n);
 
-            // Build step-by-step
+            // Пошаговый разбор
             const stepsEl = document.getElementById('fluency-steps');
             stepsEl.innerHTML = '';
             this.getSteps(mult, n).forEach((txt, i) => {
@@ -1025,16 +1161,17 @@ const app = {
         },
 
         explain(mult, n) {
+            // Объясняем ПОЧЕМУ метод работает, а не просто КАК
             switch (mult) {
-                case 2: return `Удвоение: сложи ${n} с самим собой. ${n} + ${n} = ?`;
-                case 3: return `Сначала удвой (${n} × 2 = ${n*2}), потом прибавь ${n}. Итого: ${n*2} + ${n} = ?`;
-                case 4: return `Двойное удвоение: ${n} × 2 = ${n*2}, потом ${n*2} × 2 = ?`;
-                case 5: return `Считай пятёрками, как минуты на часах: 5, 10, 15... Найди ${n}-ю отметку.`;
-                case 6: return `Умножь на 5, потом прибавь число: ${n} × 5 = ${n*5}, затем ${n*5} + ${n} = ?`;
-                case 7: return `Разбей на 5 + 2: ${n} × 5 = ${n*5}, ${n} × 2 = ${n*2}. Сложи: ${n*5} + ${n*2} = ?`;
-                case 8: return `Тройное удвоение: ${n}→${n*2}→${n*4}→?`;
-                case 9: return `Умножь на 10 и вычти число: ${n} × 10 = ${n*10}, затем ${n*10} − ${n} = ?`;
-                case 10: return `Просто допиши 0 к числу ${n}. Получается ${n}0.`;
+                case 2: return `Удвоение: 2 группы — это число + число. Сложи ${n} с самим собой: ${n} + ${n} = ?`;
+                case 3: return `3 группы = 2 группы + ещё 1. Сначала удвой (${n} × 2 = ${n*2}), потом прибавь ещё ${n}: ${n*2} + ${n} = ?`;
+                case 4: return `4 = 2 × 2, поэтому удваиваем дважды: ${n} × 2 = ${n*2}, потом ${n*2} × 2 = ?`;
+                case 5: return `Каждые 5 минут на часах — новая отметка. Считай пятёрками до ${n}-й: 5, 10, 15... Найди ${n}-ю отметку.`;
+                case 6: return `6 = 5 + 1, значит 6 групп = 5 групп + ещё 1 группа. ${n} × 5 = ${n*5}, плюс ещё ${n}: ${n*5} + ${n} = ?`;
+                case 7: return `7 = 5 + 2, значит 7 групп = 5 групп + 2 группы. ${n} × 5 = ${n*5}, ${n} × 2 = ${n*2}. Сложи: ${n*5} + ${n*2} = ?`;
+                case 8: return `8 = 2 × 2 × 2, поэтому удваиваем три раза: ${n} → ${n*2} → ${n*4} → ?`;
+                case 9: return `9 = 10 − 1, значит 9 групп = 10 групп минус 1. ${n} × 10 = ${n*10}, вычти ${n}: ${n*10} − ${n} = ?`;
+                case 10: return `Умножить на 10 = сдвинуть число на разряд. Просто допиши 0 к числу ${n}: ${n}0.`;
                 default: return '';
             }
         },
@@ -1043,15 +1180,15 @@ const app = {
             switch (mult) {
                 case 2: return [
                     `Возьми число <strong>${n}</strong>`,
-                    `Прибавь к самому себе: ${n} + ${n} = ...`
+                    `Прибавь к самому себе: ${n} + ${n} = <strong>?</strong>`
                 ];
                 case 3: return [
                     `Удвой: ${n} × 2 = <strong>${n*2}</strong>`,
-                    `Прибавь ещё раз ${n}: ${n*2} + ${n} = ...`
+                    `Прибавь ещё раз ${n}: ${n*2} + ${n} = <strong>?</strong>`
                 ];
                 case 4: return [
                     `Первое удвоение: ${n} × 2 = <strong>${n*2}</strong>`,
-                    `Второе удвоение: ${n*2} × 2 = ...`
+                    `Второе удвоение: ${n*2} × 2 = <strong>?</strong>`
                 ];
                 case 5: return [
                     `Представь циферблат часов`,
@@ -1059,25 +1196,25 @@ const app = {
                 ];
                 case 6: return [
                     `Умножь на 5: ${n} × 5 = <strong>${n*5}</strong>`,
-                    `Прибавь ${n}: ${n*5} + ${n} = ...`
+                    `Прибавь ${n}: ${n*5} + ${n} = <strong>?</strong>`
                 ];
                 case 7: return [
                     `${n} × 5 = <strong>${n*5}</strong>`,
                     `${n} × 2 = <strong>${n*2}</strong>`,
-                    `Сложи: ${n*5} + ${n*2} = ...`
+                    `Сложи: ${n*5} + ${n*2} = <strong>?</strong>`
                 ];
                 case 8: return [
                     `${n} × 2 = <strong>${n*2}</strong>`,
                     `${n*2} × 2 = <strong>${n*4}</strong>`,
-                    `${n*4} × 2 = ...`
+                    `${n*4} × 2 = <strong>?</strong>`
                 ];
                 case 9: return [
                     `${n} × 10 = <strong>${n*10}</strong>`,
-                    `Вычти ${n}: ${n*10} − ${n} = ...`
+                    `Вычти ${n}: ${n*10} − ${n} = <strong>?</strong>`
                 ];
                 case 10: return [
                     `Возьми число <strong>${n}</strong>`,
-                    `Допиши 0 справа: ${n}0`
+                    `Допиши 0 справа: <strong>${n}0</strong>`
                 ];
                 default: return [];
             }
@@ -1089,23 +1226,37 @@ const app = {
 
             const fb = document.getElementById('fluency-feedback');
             app.state.total++;
+            this.totalAttempts++;
 
             if (val === this.currentQ.ans) {
                 app.state.correct++;
-                fb.textContent = `⚡ Правильно! Ты понимаешь стратегию!`;
+                this.totalCorrect++;
+                // Показываем проверку: полное решение для закрепления
+                const { n1, n2 } = this.currentQ;
+                fb.textContent = `⚡ Правильно! Проверка: ${app.getStepByStep(n1, n2)}`;
                 fb.className = 'feedback ok';
                 app.showEnergyBurst();
 
                 this.multIdx++;
-                setTimeout(() => this.loadStrategy(), 1500);
+                setTimeout(() => this.loadStrategy(), 2000);
             } else {
-                fb.textContent = `Не совсем. Перечитай шаги и попробуй ещё раз!`;
+                fb.textContent = `Не совсем. Перечитай шаги внимательно и попробуй ещё раз!`;
                 fb.className = 'feedback err';
                 // Не переходим к следующей — ребёнок пробует снова
             }
             app.save();
             app.updateStats();
             app.checkAchievements();
+        },
+
+        victory() {
+            let msg = `${app.state.playerName}, ты разобрал все ${this.mults.length} стратегий!`;
+            msg += `\n\nПравильных: ${this.totalCorrect}`;
+            msg += `\nПопыток: ${this.totalAttempts}`;
+            if (this.totalCorrect === this.totalAttempts) msg += '\nВсё с первого раза — невероятно!';
+            else msg += '\nГлавное — ты ПОНЯЛ, как это работает!';
+            app.showModal('🧠', 'Все стратегии пройдены!', msg,
+                'Супер!', () => app.nav('screen-practice'));
         }
     },
 

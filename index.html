@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Математика Семпай | Обучение умножению</title>
+    <title>Математика Исаги | Обучение умножению</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
@@ -14,11 +14,11 @@
         <div id="screen-welcome" class="screen">
             <div class="welcome-wrapper">
                 <div class="mascot">⚽</div>
-                <h1 class="title">Математика Семпай!</h1>
+                <h1 class="title">Математика Исаги!</h1>
                 <p class="subtitle">Путь чемпиона таблицы умножения</p>
 
                 <div class="welcome-speech">
-                    <p>Привет! Я — <strong>Семпай</strong>, твой наставник по таблице умножения.</p>
+                    <p>Привет! Я — <strong>Исаги</strong>, твой наставник по таблице умножения.</p>
                     <p>Вместе мы освоим секретные техники — и умножение станет для тебя проще простого!</p>
                 </div>
 
@@ -34,7 +34,7 @@
         <!-- ГЛАВНЫЙ ЭКРАН -->
         <div id="screen-home" class="screen">
             <div class="mascot">⚽</div>
-            <h1 class="title" id="home-greeting">Математика Семпай!</h1>
+            <h1 class="title" id="home-greeting">Математика Исаги!</h1>
             <p class="subtitle" id="home-subtitle">Путь чемпиона таблицы умножения</p>
 
             <div class="stats-box">
@@ -168,6 +168,7 @@
                 <div class="flash-card" id="flash-card" onclick="app.flash.flip()">
                     <div class="flash-front">
                         <div class="flash-problem" id="flash-problem">7 × 8 = ?</div>
+                        <div class="flash-hint" id="flash-hint"></div>
                         <div class="flash-tap">Нажми, чтобы перевернуть</div>
                     </div>
                     <div class="flash-back">
@@ -203,6 +204,7 @@
                     <span class="stat-label">Точность</span>
                 </div>
             </div>
+            <div id="marathon-hint" class="practice-hint"></div>
             <div class="task-box">
                 <div class="equation">
                     <span id="marathon-n1">2</span> × <span id="marathon-n2">3</span> = <input type="number" id="marathon-input" autocomplete="off">
@@ -247,6 +249,7 @@
             <div class="nav-bar">
                 <button class="btn-back" onclick="app.endPractice()">← Назад</button>
                 <h2>🧠 Пойми</h2>
+                <span id="fluency-counter" class="practice-counter">1/9</span>
             </div>
             <div class="strategy-box">
                 <h4>📖 Стратегия: <span id="fluency-name">Удвоение</span></h4>
