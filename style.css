@@ -426,7 +426,7 @@ button:active { transform: scale(0.97); }
     border: 2px solid var(--border) !important;
     border-radius: 14px !important;
     outline: none !important;
-    color: var(--primary) !important;
+    color: #fae22a !important;
     font-weight: 900 !important;
     font-family: inherit !important;
     box-sizing: border-box !important;
