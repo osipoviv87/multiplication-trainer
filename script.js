@@ -159,18 +159,19 @@ const app = {
         const container = document.getElementById('weeks-container');
         container.innerHTML = '';
         CURRICULUM.weeks.forEach(week => {
-            const isLocked = !this.state.unlockedWeeks.includes(week.id);
+            // Все главы доступны сразу!
+            const isLocked = false;
             const div = document.createElement('div');
-            div.className = `week-card ${isLocked ? 'locked' : ''}`;
+            div.className = `week-card`;
             div.innerHTML = `
                 <div class="week-num">${week.id}</div>
                 <div class="week-title">${week.title}</div>
                 <div class="week-desc">${week.desc}</div>
-                <div class="week-status" style="color:${isLocked ? '#475569' : 'var(--success)'}">
-                    ${isLocked ? '🔒 Закрыто' : '⚡ Доступно'}
+                <div class="week-status" style="color:var(--success)">
+                    ⚡ Доступно
                 </div>
             `;
-            if (!isLocked) div.onclick = () => this.startLesson(week.id);
+            div.onclick = () => this.startLesson(week.id);
             container.appendChild(div);
         });
     },
@@ -185,49 +186,232 @@ const app = {
 
     loadQuestion() {
         const week = CURRICULUM.weeks.find(w => w.id === this.state.week);
-        let mult = week.multipliers[this.state.lessonIdx % week.multipliers.length];
-        if (week.id === 4) mult = week.multipliers[Math.floor(Math.random() * week.multipliers.length)];
+        const operation = week.operation || 'multiply';
+        
+        let question = {};
+        
+        if (operation === 'add') {
+            // Сложение: числа от 1 до 20
+            const n1 = Math.floor(Math.random() * 15) + 1;
+            const n2 = Math.floor(Math.random() * 10) + 1;
+            question = { n1, n2, ans: n1 + n2, operation: '+' };
+        } else if (operation === 'subtract') {
+            // Вычитание: первое число больше второго, результат положительный
+            const n1 = Math.floor(Math.random() * 15) + 5;
+            const n2 = Math.floor(Math.random() * (n1 - 1)) + 1;
+            question = { n1, n2, ans: n1 - n2, operation: '−' };
+        } else if (operation === 'fraction') {
+            const subOp = week.subOperation || 'concept';
+            if (subOp === 'concept') {
+                // Понятие дроби: показываем дробь, нужно ввести числитель или знаменатель
+                const denom = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
+                const num = Math.floor(Math.random() * (denom - 1)) + 1;
+                // Спрашиваем либо числитель, либо знаменатель
+                const askFor = Math.random() > 0.5 ? 'numerator' : 'denominator';
+                if (askFor === 'numerator') {
+                    // Показываем знаменатель и часть, спрашиваем числитель
+                    question = { num, denom, showPart: num, ans: num, operation: 'fraction-concept-num' };
+                } else {
+                    // Показываем числитель и часть, спрашиваем знаменатель
+                    question = { num, denom, showPart: num, ans: denom, operation: 'fraction-concept-denom' };
+                }
+            } else if (subOp === 'compare') {
+                // Сравнение дробей: какая больше?
+                const denom = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
+                const num1 = Math.floor(Math.random() * (denom - 1)) + 1;
+                let num2 = Math.floor(Math.random() * (denom - 1)) + 1;
+                while (num2 === num1) num2 = Math.floor(Math.random() * (denom - 1)) + 1;
+                const val1 = num1 / denom;
+                const val2 = num2 / denom;
+                question = {
+                    n1: num1, n2: num2, denom,
+                    ans: val1 > val2 ? 1 : 2,
+                    operation: 'compare',
+                    subOperation: 'fraction'
+                };
+            } else if (subOp === 'add') {
+                // Сложение дробей с одинаковым знаменателем
+                const denom = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
+                const maxNum = Math.floor(denom / 2);
+                const num1 = Math.floor(Math.random() * maxNum) + 1;
+                const num2 = Math.floor(Math.random() * (maxNum - num1)) + 1;
+                question = { n1: num1, n2: num2, denom, ans: num1 + num2, operation: 'fraction-add' };
+            } else if (subOp === 'subtract') {
+                // Вычитание дробей с одинаковым знаменателем
+                const denom = [2, 3, 4, 5, 6, 8, 10][Math.floor(Math.random() * 7)];
+                const num1 = Math.floor(Math.random() * (denom - 1)) + 2;
+                const num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
+                question = { n1: num1, n2: num2, denom, ans: num1 - num2, operation: 'fraction-sub' };
+            }
+        } else if (operation === 'mix') {
+            // Великий микс: случайная операция
+            const ops = ['multiply', 'add', 'subtract', 'fraction'];
+            const randomOp = ops[Math.floor(Math.random() * ops.length)];
+            
+            if (randomOp === 'multiply') {
+                const mult = [2,3,4,5,6,7,8,9,10][Math.floor(Math.random() * 9)];
+                const num2 = Math.floor(Math.random() * 9) + 1;
+                question = { n1: mult, n2: num2, ans: mult * num2, operation: '×' };
+            } else if (randomOp === 'add') {
+                const n1 = Math.floor(Math.random() * 15) + 1;
+                const n2 = Math.floor(Math.random() * 10) + 1;
+                question = { n1, n2, ans: n1 + n2, operation: '+' };
+            } else if (randomOp === 'subtract') {
+                const n1 = Math.floor(Math.random() * 15) + 5;
+                const n2 = Math.floor(Math.random() * (n1 - 1)) + 1;
+                question = { n1, n2, ans: n1 - n2, operation: '−' };
+            } else if (randomOp === 'fraction') {
+                const denom = 4;
+                const num1 = Math.floor(Math.random() * 2) + 1;
+                const num2 = Math.floor(Math.random() * (3 - num1)) + 1;
+                question = { n1: num1, n2: num2, denom, ans: num1 + num2, operation: 'fraction-add' };
+            }
+        } else {
+            // Умножение (по умолчанию)
+            let mult = week.multipliers[this.state.lessonIdx % week.multipliers.length];
+            if (week.id === 4) mult = week.multipliers[Math.floor(Math.random() * week.multipliers.length)];
+            const num2 = Math.floor(Math.random() * 9) + 1;
+            question = { n1: mult, n2: num2, ans: mult * num2, operation: '×' };
+        }
 
-        const num2 = Math.floor(Math.random() * 9) + 1;
-        this.state.currentQ = { n1: mult, n2: num2, ans: mult * num2 };
+        this.state.currentQ = question;
 
-        document.getElementById('lesson-title').innerText = `Глава ${this.state.week}: Умножение на ${mult}`;
-        document.getElementById('q-n1').innerText = mult;
-        document.getElementById('q-n2').innerText = num2;
-        document.getElementById('answer-input').value = '';
+        // Обновляем заголовок и отображение вопроса
+        const titleMap = {
+            'multiply': `Глава ${this.state.week}: Умножение`,
+            'add': `Глава ${this.state.week}: Сложение`,
+            'subtract': `Глава ${this.state.week}: Вычитание`,
+            'fraction': `Глава ${this.state.week}: Дроби`,
+            'mix': `Глава ${this.state.week}: Великий Микс`
+        };
+        document.getElementById('lesson-title').innerText = titleMap[operation] || `Глава ${this.state.week}`;
+
+        // Обновляем отображение уравнения
+        const opEl = document.getElementById('q-op');
+        const n1El = document.getElementById('q-n1');
+        const n2El = document.getElementById('q-n2');
+        const answerInput = document.getElementById('answer-input');
+        const fractionChoice = document.getElementById('fraction-choice');
+        const equationContainer = document.getElementById('equation-container');
+
+        // Скрываем по умолчанию
+        fractionChoice.style.display = 'none';
+        answerInput.style.display = 'inline-block';
+        equationContainer.style.display = 'block';
+
+        if (question.subOperation === 'fraction' && question.operation === 'compare') {
+            // Сравнение дробей: показываем кнопки 1 или 2
+            equationContainer.style.display = 'none';
+            fractionChoice.style.display = 'flex';
+            // Сбрасываем выбор
+            this.selectFractionChoice(0);
+        } else if (question.operation === 'fraction-concept-num' || question.operation === 'fraction-concept-denom') {
+            // Понятие дроби: показываем уравнение с вопросом
+            equationContainer.style.display = 'block';
+            fractionChoice.style.display = 'none';
+            n1El.textContent = question.num || question.showPart;
+            opEl.textContent = '/';
+            n2El.textContent = question.denom;
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'fraction-add') {
+            // Сложение дробей: ответ - числитель
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = '+';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'fraction-sub') {
+            // Вычитание дробей: ответ - числитель
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = '−';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else {
+            // Обычные операции: сложение, вычитание, умножение
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = question.operation || '×';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        }
+
+        // Очищаем подсказки
         document.getElementById('feedback').innerText = '';
         document.getElementById('feedback').className = 'feedback';
         document.getElementById('hint-display').style.display = 'none';
 
-        const lessonData = this.getLessonData(week, mult);
+        const lessonData = this.getLessonData(week, question);
         document.getElementById('strategy-text').innerText = lessonData.strategy;
-        this.updateVisualDesc(mult);
-        this.setVisual(this.state.currentVisual);
+        this.updateVisualDesc(question);
+        this.setVisual(this.state.currentVisual, question);
         this.updateProgress();
-        document.getElementById('answer-input').focus();
-    },
-
-    getLessonData(week, mult) {
-        if (week.id === 4 && CURRICULUM.strategyByMult[mult]) {
-            const s = CURRICULUM.strategyByMult[mult];
-            const n = this.state.currentQ.n2;
-            return {
-                strategy: `Приём «${s.name}»: ${s.formula(n)}`,
-                hint: `Стратегия для умножения на ${mult}: ${s.name}`,
-                fingerTip: ''
-            };
+        
+        // Фокус на поле ввода (если не дроби-сравнение)
+        if (question.operation !== 'compare' || !question.subOperation) {
+            document.getElementById('answer-input').focus();
         }
-        return week.lessons.find(l => l.mult === mult) || week.lessons[0];
     },
 
-    updateVisualDesc(mult) {
-        const { n1, n2 } = this.state.currentQ;
+    getLessonData(week, question) {
+        const operation = week.operation || 'multiply';
+        
+        if (operation === 'multiply') {
+            const mult = question.n1;
+            if (week.id === 4 && CURRICULUM.strategyByMult[mult]) {
+                const s = CURRICULUM.strategyByMult[mult];
+                const n = question.n2;
+                return {
+                    strategy: `Приём «${s.name}»: ${s.formula(n)}`,
+                    hint: `Стратегия для умножения на ${mult}: ${s.name}`,
+                    fingerTip: ''
+                };
+            }
+            return week.lessons.find(l => l.mult === mult) || week.lessons[0];
+        } else if (operation === 'add') {
+            const s = CURRICULUM.strategyForOperation.add;
+            return {
+                strategy: `${s.name}: ${s.formula(question.n1, question.n2)}`,
+                hint: `Сложение: ${question.n1} + ${question.n2}`,
+                fingerTip: week.lessons[0].fingerTip
+            };
+        } else if (operation === 'subtract') {
+            const s = CURRICULUM.strategyForOperation.subtract;
+            return {
+                strategy: `${s.name}: ${s.formula(question.n1, question.n2)}`,
+                hint: `Вычитание: ${question.n1} − ${question.n2}`,
+                fingerTip: week.lessons[0].fingerTip
+            };
+        } else if (operation === 'fraction') {
+            return week.lessons[0];
+        } else if (operation === 'mix') {
+            return week.lessons[0];
+        }
+        return week.lessons[0];
+    },
+
+    updateVisualDesc(q) {
         const desc = document.getElementById('visual-desc');
-        desc.innerText = `${n1} × ${n2} = ?`;
+        const operation = q.operation || '×';
+
+        if (operation === 'fraction-concept-num') {
+            desc.innerHTML = `Дробь: <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span>. Сколько частей взяли? (числитель)`;
+        } else if (operation === 'fraction-concept-denom') {
+            desc.innerHTML = `Дробь: <span class="frac"><span class="frac-n">${q.num}</span><span class="frac-d">?</span></span>. На сколько частей разделили? (знаменатель)`;
+        } else if (q.subOperation === 'fraction' && operation === 'compare') {
+            desc.innerHTML = `Какая дробь больше: <span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.denom}</span></span> или <span class="frac"><span class="frac-n">${q.n2}</span><span class="frac-d">${q.denom}</span></span>?`;
+        } else if (q.operation === 'fraction-add') {
+            desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.denom}</span></span> + <span class="frac"><span class="frac-n">${q.n2}</span><span class="frac-d">${q.denom}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span>`;
+        } else if (q.operation === 'fraction-sub') {
+            desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.denom}</span></span> − <span class="frac"><span class="frac-n">${q.n2}</span><span class="frac-d">${q.denom}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span>`;
+        } else {
+            desc.innerText = `${q.n1} ${operation} ${q.n2} = ?`;
+        }
     },
 
     // ─── VISUALS ───
-    setVisual(type) {
+    setVisual(type, question) {
         this.state.currentVisual = type;
         const container = document.getElementById('visual-container');
         container.innerHTML = '';
@@ -237,11 +421,444 @@ const app = {
             btn.classList.toggle('active', btn.dataset.type === type);
         });
 
-        const { n1, n2 } = this.state.currentQ;
+        const q = question || this.state.currentQ;
+        const operation = q.operation || '×';
 
-        if (type === 'array') this.renderArray(container, n1, n2);
-        else if (type === 'line') this.renderNumberLine(container, n1, n2);
-        else if (type === 'fingers') this.renderFingers(container, n1, n2);
+        // Для дробей и новых операций используем специальные рендеры
+        if (operation.startsWith('fraction') || q.subOperation === 'fraction') {
+            if (type === 'array') this.renderFractionVisual(container, q);
+            else if (type === 'line') this.renderFractionLine(container, q);
+            else this.renderFractionPie(container, q);
+        } else if (operation === '+') {
+            if (type === 'array') this.renderAddArray(container, q.n1, q.n2);
+            else if (type === 'line') this.renderAddNumberLine(container, q.n1, q.n2);
+            else this.renderFingersAdd(container, q.n1, q.n2);
+        } else if (operation === '−') {
+            if (type === 'array') this.renderSubArray(container, q.n1, q.n2);
+            else if (type === 'line') this.renderSubNumberLine(container, q.n1, q.n2);
+            else this.renderFingersSub(container, q.n1, q.n2);
+        } else {
+            // Умножение (по умолчанию)
+            const { n1, n2 } = q;
+            if (type === 'array') this.renderArray(container, n1, n2);
+            else if (type === 'line') this.renderNumberLine(container, n1, n2);
+            else if (type === 'fingers') this.renderFingers(container, n1, n2);
+        }
+    },
+
+    // ─── ДРОБИ: Визуализация ───
+    renderFractionVisual(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.gap = '20px';
+        container.style.padding = '10px';
+
+        // Для concept дробей показываем одну дробь
+        if (q.operation === 'fraction-concept-num' || q.operation === 'fraction-concept-denom') {
+            const wrap = this.createFractionPie(q.num || q.showPart, q.denom, 'primary');
+            container.appendChild(wrap);
+
+            const label = document.createElement('div');
+            label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
+            if (q.operation === 'fraction-concept-num') {
+                label.innerHTML = `Знаменатель: <strong>${q.denom}</strong>. Сколько частей закрашено?`;
+            } else {
+                label.innerHTML = `Закрашено: <strong>${q.num || q.showPart}</strong> частей. На сколько всего разделили?`;
+            }
+            container.appendChild(label);
+        } else if (q.operation === 'fraction-add' || q.operation === 'fraction-sub') {
+            // Показываем две дроби
+            const wrap1 = this.createFractionPie(q.n1, q.denom, 'primary');
+            const wrap2 = this.createFractionPie(q.n2, q.denom, 'secondary');
+            container.appendChild(wrap1);
+            container.appendChild(wrap2);
+
+            const label = document.createElement('div');
+            label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
+            label.innerHTML = `Знаменатель: <strong>${q.denom}</strong>`;
+            container.appendChild(label);
+        } else {
+            // Сравнение дробей
+            const wrap1 = this.createFractionPie(q.n1, q.denom, q.n1 >= q.n2 ? 'primary' : 'secondary');
+            const wrap2 = this.createFractionPie(q.n2, q.denom, q.n1 >= q.n2 ? 'secondary' : 'primary');
+            
+            container.appendChild(wrap1);
+            container.appendChild(wrap2);
+
+            const label = document.createElement('div');
+            label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
+            label.innerHTML = q.operation === 'compare'
+                ? 'Нажми 1 или 2 для ответа'
+                : `Знаменатель: <strong>${q.denom}</strong>`;
+            container.appendChild(label);
+        }
+    },
+
+    createFractionPie(numerator, denominator, colorVar) {
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.alignItems = 'center';
+        wrap.style.gap = '5px';
+
+        const svgSize = 80;
+        const radius = 35;
+        const center = svgSize / 2;
+        const percentage = numerator / denominator;
+        const dashArray = 2 * Math.PI * radius;
+        const dashOffset = dashArray * (1 - percentage);
+
+        // Яркие контрастные цвета для дробей
+        const colors = {
+            'primary': '#00d4ff',      // Яркий циан
+            'secondary': '#ff6b6b',    // Яркий коралловый
+            'accent': '#ffd93d'        // Яркий жёлтый
+        };
+        const strokeColor = colors[colorVar] || colors.primary;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgSize);
+        svg.setAttribute('height', svgSize);
+        svg.style.overflow = 'visible';
+
+        // Фон (серый круг)
+        const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', center);
+        bgCircle.setAttribute('cy', center);
+        bgCircle.setAttribute('r', radius);
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', '#e2e8f0');
+        bgCircle.setAttribute('stroke-width', '4');
+        svg.appendChild(bgCircle);
+
+        // Сегмент (цветной)
+        const fgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        fgCircle.setAttribute('cx', center);
+        fgCircle.setAttribute('cy', center);
+        fgCircle.setAttribute('r', radius);
+        fgCircle.setAttribute('fill', 'none');
+        fgCircle.setAttribute('stroke', strokeColor);
+        fgCircle.setAttribute('stroke-width', '4');
+        fgCircle.setAttribute('stroke-dasharray', dashArray);
+        fgCircle.setAttribute('stroke-dashoffset', dashOffset);
+        fgCircle.setAttribute('transform', `rotate(-90 ${center} ${center})`);
+        fgCircle.style.transition = 'stroke-dashoffset 0.5s ease';
+        fgCircle.style.filter = 'drop-shadow(0 0 6px ' + strokeColor + ')';
+        svg.appendChild(fgCircle);
+
+        // Линии разделения
+        for (let i = 0; i < denominator; i++) {
+            const angle = (i / denominator) * 2 * Math.PI - Math.PI / 2;
+            const x2 = center + radius * Math.cos(angle);
+            const y2 = center + radius * Math.sin(angle);
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', center);
+            line.setAttribute('y1', center);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', '#64748b');
+            line.setAttribute('stroke-width', '1');
+            svg.appendChild(line);
+        }
+
+        wrap.appendChild(svg);
+
+        const frac = document.createElement('div');
+        frac.className = 'frac';
+        frac.innerHTML = `<span class="frac-n">${numerator}</span><span class="frac-d">${denominator}</span>`;
+        wrap.appendChild(frac);
+
+        return wrap;
+    },
+
+    renderFractionPie(container, q) {
+        this.renderFractionVisual(container, q);
+    },
+
+    renderFractionLine(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.style.cssText = 'text-align:center; margin-bottom:10px;';
+        
+        if (q.operation === 'compare') {
+            info.innerHTML = `Сравни дроби с одинаковым знаменателем <strong>${q.denom}</strong>`;
+        } else if (q.operation === 'fraction-add') {
+            info.innerHTML = `Сложи числители: <strong>${q.n1} + ${q.n2} = ?</strong>`;
+        } else if (q.operation === 'fraction-sub') {
+            info.innerHTML = `Вычти числители: <strong>${q.n1} − ${q.n2} = ?</strong>`;
+        }
+        container.appendChild(info);
+
+        this.renderFractionVisual(container, q);
+    },
+
+    // ─── СЛОЖЕНИЕ: Визуализация ───
+    renderAddArray(container, n1, n2) {
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.justifyContent = 'center';
+        container.style.gap = '10px';
+        container.style.padding = '10px';
+
+        // Первая группа точек
+        const group1 = document.createElement('div');
+        group1.style.display = 'flex';
+        group1.style.flexWrap = 'wrap';
+        group1.style.gap = '4px';
+        group1.style.padding = '8px';
+        group1.style.border = '2px solid var(--primary)';
+        group1.style.borderRadius = '8px';
+        for (let i = 0; i < n1; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot row-even';
+            dot.style.width = '14px';
+            dot.style.height = '14px';
+            group1.appendChild(dot);
+        }
+        container.appendChild(group1);
+
+        const plus = document.createElement('span');
+        plus.style.cssText = 'font-size:1.5rem; color:var(--primary); align-self:center;';
+        plus.textContent = '+';
+        container.appendChild(plus);
+
+        // Вторая группа точек
+        const group2 = document.createElement('div');
+        group2.style.display = 'flex';
+        group2.style.flexWrap = 'wrap';
+        group2.style.gap = '4px';
+        group2.style.padding = '8px';
+        group2.style.border = '2px solid var(--secondary)';
+        group2.style.borderRadius = '8px';
+        for (let i = 0; i < n2; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot row-odd';
+            dot.style.width = '14px';
+            dot.style.height = '14px';
+            group2.appendChild(dot);
+        }
+        container.appendChild(group2);
+
+        const label = document.createElement('div');
+        label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:8px;';
+        label.innerHTML = `<span style="color:var(--primary)">${n1}</span> + <span style="color:var(--secondary)">${n2}</span> = <strong style="color:var(--text)">?</strong>`;
+        container.appendChild(label);
+    },
+
+    renderAddNumberLine(container, n1, n2) {
+        container.style.display = 'block';
+        container.style.padding = '10px 0';
+
+        const line = document.createElement('div');
+        line.className = 'number-line';
+
+        const total = n1 + n2;
+        for (let i = 0; i <= total; i++) {
+            const step = document.createElement('div');
+            step.className = 'nl-step';
+            step.style.animationDelay = `${i * 100}ms`;
+
+            const num = document.createElement('div');
+            num.className = `nl-num ${i === total ? 'final' : ''}`;
+            num.textContent = i === total ? '?' : i;
+            step.appendChild(num);
+
+            if (i < total) {
+                const arrow = document.createElement('span');
+                arrow.className = 'nl-arrow';
+                arrow.textContent = ' +1 →';
+                step.appendChild(arrow);
+            }
+
+            line.appendChild(step);
+        }
+        container.appendChild(line);
+
+        const label = document.createElement('div');
+        label.className = 'nl-label';
+        label.innerHTML = `Начни с <strong>${n1}</strong>, сделай <strong>${n2}</strong> шага вперёд = <strong style="color:var(--primary)">?</strong>`;
+        container.appendChild(label);
+    },
+
+    renderFingersAdd(container, n1, n2) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Сложение на пальцах:</strong><br>
+1. Покажи первое число <strong>${n1}</strong> на пальцах<br>
+2. Загни ещё <strong>${n2}</strong> пальца<br>
+3. Посчитай все вытянутые пальцы`;
+        container.appendChild(info);
+
+        const row = document.createElement('div');
+        row.className = 'fingers-row';
+        row.style.justifyContent = 'center';
+
+        const total = n1 + n2;
+        for (let i = 1; i <= 10; i++) {
+            const finger = document.createElement('div');
+            finger.className = 'finger';
+
+            const stick = document.createElement('div');
+            stick.className = `finger-stick ${i <= total ? 'up' : 'bent'}`;
+            finger.appendChild(stick);
+
+            const num = document.createElement('div');
+            num.className = 'finger-num';
+            num.textContent = i;
+            finger.appendChild(num);
+
+            row.appendChild(finger);
+        }
+        container.appendChild(row);
+
+        const groups = document.createElement('div');
+        groups.style.cssText = 'display:flex; justify-content:center; gap:20px; margin-top:8px;';
+        groups.innerHTML = `
+            <span class="finger-group-label finger-group-tens">${n1} + ${n2}</span>
+            <span class="finger-group-label finger-group-ones">= ${total}</span>
+        `;
+        container.appendChild(groups);
+    },
+
+    // ─── ВЫЧИТАНИЕ: Визуализация ───
+    renderSubArray(container, n1, n2) {
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.justifyContent = 'center';
+        container.style.gap = '10px';
+        container.style.padding = '10px';
+
+        // Все точки
+        const all = document.createElement('div');
+        all.style.display = 'flex';
+        all.style.flexWrap = 'wrap';
+        all.style.gap = '4px';
+        all.style.padding = '8px';
+        all.style.border = '2px solid var(--primary)';
+        all.style.borderRadius = '8px';
+        for (let i = 0; i < n1; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot row-even';
+            dot.style.width = '14px';
+            dot.style.height = '14px';
+            all.appendChild(dot);
+        }
+        container.appendChild(all);
+
+        const minus = document.createElement('span');
+        minus.style.cssText = 'font-size:1.5rem; color:var(--error); align-self:center;';
+        minus.textContent = '−';
+        container.appendChild(minus);
+
+        // Вычитаемые точки (зачёркнутые)
+        const removed = document.createElement('div');
+        removed.style.display = 'flex';
+        removed.style.flexWrap = 'wrap';
+        removed.style.gap = '4px';
+        removed.style.padding = '8px';
+        removed.style.border = '2px solid var(--error)';
+        removed.style.borderRadius = '8px';
+        removed.style.opacity = '0.6';
+        for (let i = 0; i < n2; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot row-odd';
+            dot.style.width = '14px';
+            dot.style.height = '14px';
+            dot.style.position = 'relative';
+            const cross = document.createElement('div');
+            cross.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--error); font-weight:bold; font-size:12px;';
+            cross.textContent = '×';
+            dot.appendChild(cross);
+            removed.appendChild(dot);
+        }
+        container.appendChild(removed);
+
+        const label = document.createElement('div');
+        label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:8px;';
+        label.innerHTML = `<span style="color:var(--primary)">${n1}</span> − <span style="color:var(--error)">${n2}</span> = <strong style="color:var(--text)">?</strong>`;
+        container.appendChild(label);
+    },
+
+    renderSubNumberLine(container, n1, n2) {
+        container.style.display = 'block';
+        container.style.padding = '10px 0';
+
+        const line = document.createElement('div');
+        line.className = 'number-line';
+
+        for (let i = 0; i <= n1; i++) {
+            const step = document.createElement('div');
+            step.className = 'nl-step';
+            step.style.animationDelay = `${i * 100}ms`;
+
+            const num = document.createElement('div');
+            num.className = `nl-num ${i === n1 - n2 ? 'final' : ''}`;
+            num.textContent = i;
+            step.appendChild(num);
+
+            if (i < n1) {
+                const arrow = document.createElement('span');
+                arrow.className = 'nl-arrow';
+                arrow.textContent = ' +1 →';
+                step.appendChild(arrow);
+            }
+
+            line.appendChild(step);
+        }
+        container.appendChild(line);
+
+        const label = document.createElement('div');
+        label.className = 'nl-label';
+        label.innerHTML = `Начни с <strong>${n1}</strong>, отсчитай <strong>${n2}</strong> шага назад = <strong style="color:var(--primary)">?</strong>`;
+        container.appendChild(label);
+    },
+
+    renderFingersSub(container, n1, n2) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Вычитание на пальцах:</strong><br>
+1. Покажи первое число <strong>${n1}</strong> на пальцах<br>
+2. Загни <strong>${n2}</strong> пальца (убери их)<br>
+3. Посчитай оставшиеся вытянутые пальцы`;
+        container.appendChild(info);
+
+        const row = document.createElement('div');
+        row.className = 'fingers-row';
+        row.style.justifyContent = 'center';
+
+        const result = n1 - n2;
+        for (let i = 1; i <= 10; i++) {
+            const finger = document.createElement('div');
+            finger.className = 'finger';
+
+            const stick = document.createElement('div');
+            stick.className = `finger-stick ${i <= result ? 'up' : 'bent'}`;
+            finger.appendChild(stick);
+
+            const num = document.createElement('div');
+            num.className = 'finger-num';
+            num.textContent = i;
+            finger.appendChild(num);
+
+            row.appendChild(finger);
+        }
+        container.appendChild(row);
+
+        const groups = document.createElement('div');
+        groups.style.cssText = 'display:flex; justify-content:center; gap:20px; margin-top:8px;';
+        groups.innerHTML = `
+            <span class="finger-group-label finger-group-tens">${n1} − ${n2}</span>
+            <span class="finger-group-label finger-group-ones">= ${result}</span>
+        `;
+        container.appendChild(groups);
     },
 
     renderArray(container, rows, cols) {
@@ -381,13 +998,24 @@ const app = {
 
     // ─── CHECK ANSWER ───
     check() {
-        const input = parseInt(document.getElementById('answer-input').value);
-        if (isNaN(input)) return;
+        const q = this.state.currentQ;
+        let input;
+        
+        // Для сравнения дробей (1 или 2)
+        if (q.operation === 'compare' && q.subOperation === 'fraction') {
+            // Получаем значение из кнопок
+            const selectedBtn = document.querySelector('.fraction-choice-btn.selected');
+            if (!selectedBtn) return;
+            input = parseInt(selectedBtn.dataset.value);
+        } else {
+            input = parseInt(document.getElementById('answer-input').value);
+            if (isNaN(input)) return;
+        }
 
         const feedback = document.getElementById('feedback');
         this.state.total++;
 
-        if (input === this.state.currentQ.ans) {
+        if (input === q.ans) {
             this.state.correct++;
             this.state.streak++;
             if (this.state.streak > this.state.bestStreak) {
@@ -414,21 +1042,16 @@ const app = {
             this.showEnergyBurst();
             this.triggerSpeedLines();
 
-            // Unlock next week after 10 correct in this lesson
-            if (this.state.lessonIdx >= 9 && this.state.week < 4) {
-                const nextWeek = this.state.week + 1;
-                if (!this.state.unlockedWeeks.includes(nextWeek)) {
-                    this.state.unlockedWeeks.push(nextWeek);
-                    // Show unlock message via modal
-                    setTimeout(() => {
-                        this.showModal(
-                            '🎉',
-                            'Новая глава!',
-                            this.getMotivation('newWeekUnlocked'),
-                            'Супер!'
-                        );
-                    }, 500);
-                }
+            // Показываем сообщение после 10 правильных в главе
+            if (this.state.lessonIdx >= 9) {
+                setTimeout(() => {
+                    this.showModal(
+                        '🎉',
+                        'Глава пройдена!',
+                        `${this.getMotivation('correct')}\nТы решил 10 примеров подряд!`,
+                        'Супер!'
+                    );
+                }, 500);
             }
 
             setTimeout(() => {
@@ -438,12 +1061,9 @@ const app = {
         } else {
             this.state.streak = 0;
             this.state.wasWrong = true;
-            const { n1, n2, ans } = this.state.currentQ;
-            const s = CURRICULUM.strategyByMult[n1];
-
+            
             let motivation = this.getMotivation('wrong');
-            let explanation = `Правильный ответ: ${ans}`;
-            if (s) explanation += `\n${s.name}: ${s.formula(n2)}`;
+            let explanation = this.getExplanation(q);
 
             feedback.innerText = `${motivation}\n${explanation}`;
             feedback.className = "feedback err";
@@ -453,6 +1073,37 @@ const app = {
         this.save();
         this.updateStats();
         this.checkAchievements();
+    },
+
+    getExplanation(q) {
+        const operation = q.operation || '×';
+
+        if (operation === 'fraction-concept-num') {
+            return `Правильный ответ: ${q.ans} (числитель).\nЧислитель показывает, сколько частей взяли из ${q.denom}.`;
+        } else if (operation === 'fraction-concept-denom') {
+            return `Правильный ответ: ${q.ans} (знаменатель).\nЗнаменатель показывает, на сколько частей разделили целое.`;
+        } else if (q.subOperation === 'fraction' && operation === 'compare') {
+            const correctLabel = q.ans === 1 ? 'первая' : 'вторая';
+            const val1 = (q.n1 / q.denom).toFixed(2);
+            const val2 = (q.n2 / q.denom).toFixed(2);
+            return `Правильно: ${correctLabel} дробь больше.\n${q.n1}/${q.denom} = ${val1}, ${q.n2}/${q.denom} = ${val2}`;
+        } else if (operation === 'fraction-add') {
+            return `Правильный ответ: ${q.ans}/${q.denom}.\nСложи числители: ${q.n1} + ${q.n2} = ${q.ans}`;
+        } else if (operation === 'fraction-sub') {
+            return `Правильный ответ: ${q.ans}/${q.denom}.\nВычти числители: ${q.n1} − ${q.n2} = ${q.ans}`;
+        } else if (operation === '+') {
+            const s = CURRICULUM.strategyForOperation.add;
+            return `Правильный ответ: ${q.ans}.\n${s.name}: ${s.formula(q.n1, q.n2)}`;
+        } else if (operation === '−') {
+            const s = CURRICULUM.strategyForOperation.subtract;
+            return `Правильный ответ: ${q.ans}.\n${s.name}: ${s.formula(q.n1, q.n2)}`;
+        } else {
+            // Умножение
+            const s = CURRICULUM.strategyByMult[q.n1];
+            let explanation = `Правильный ответ: ${q.ans}`;
+            if (s) explanation += `\n${s.name}: ${s.formula(q.n2)}`;
+            return explanation;
+        }
     },
 
     // ─── SHOW MODAL (reusable) ───
@@ -478,8 +1129,8 @@ const app = {
     // ─── HINT ───
     showHint() {
         const week = CURRICULUM.weeks.find(w => w.id === this.state.week);
-        const mult = this.state.currentQ.n1;
-        const lessonData = this.getLessonData(week, mult);
+        const q = this.state.currentQ;
+        const lessonData = this.getLessonData(week, q);
         const hintBox = document.getElementById('hint-display');
 
         let hintText = lessonData.hint || '';
@@ -489,6 +1140,13 @@ const app = {
 
         hintBox.innerText = hintText;
         hintBox.style.display = 'block';
+    },
+
+    // Выбор для сравнения дробей
+    selectFractionChoice(value) {
+        document.querySelectorAll('.fraction-choice-btn').forEach(btn => {
+            btn.classList.toggle('selected', parseInt(btn.dataset.value) === value);
+        });
     },
 
     // ─── PROGRESS ───

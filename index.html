@@ -103,8 +103,13 @@
 
                 <!-- Задача -->
                 <div class="task-box">
-                    <div class="equation">
-                        <span id="q-n1">2</span> × <span id="q-n2">3</span> = <input type="number" id="answer-input" autocomplete="off">
+                    <div class="equation" id="equation-container">
+                        <span id="q-n1">2</span> <span id="q-op">×</span> <span id="q-n2">3</span> <span id="q-eq">=</span> <input type="number" id="answer-input" autocomplete="off">
+                    </div>
+                    <div class="fraction-choice" id="fraction-choice" style="display:none;">
+                        <button class="fraction-choice-btn" data-value="1" onclick="app.selectFractionChoice(1)">1</button>
+                        <span class="fraction-choice-sep">или</span>
+                        <button class="fraction-choice-btn" data-value="2" onclick="app.selectFractionChoice(2)">2</button>
                     </div>
                     <div class="controls">
                         <button class="btn-main" onclick="app.check()">Ответить</button>
