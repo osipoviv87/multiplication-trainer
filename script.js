@@ -16,7 +16,8 @@ const app = {
         divideTotal: 0,
         geometryTotal: 0,
         physicsTotal: 0,
-        currentSubject: 'math'
+        currentSubject: 'math',
+        theoryVisited: {}
     },
 
     // ─── INIT ───
@@ -74,7 +75,7 @@ const app = {
             if (t === 0) sub.textContent = 'Готов начать путь ниндзя?';
             else if (t < 50) sub.textContent = `Хорошее начало, ${name}!`;
             else if (t < 100) sub.textContent = `Ты настоящий боец, ${name}!`;
-            else sub.textContent = `${name} — легенда Математики Исаги!`;
+            else sub.textContent = `${name} — мастер Матэ Додзё!`;
         }
     },
 
@@ -197,7 +198,405 @@ const app = {
         this.state.week = weekId;
         this.state.lessonIdx = 0;
         this.nav('screen-lesson');
+        this.loadTheory(weekId);
         this.loadQuestion();
+    },
+
+    // ─── THEORY BLOCK ───
+    loadTheory(weekId) {
+        const week = CURRICULUM.weeks.find(w => w.id === weekId);
+        const theoryBlock = document.getElementById('theory-block');
+
+        if (!week || !week.theory) {
+            theoryBlock.style.display = 'none';
+            return;
+        }
+
+        theoryBlock.style.display = 'block';
+        const theory = week.theory;
+
+        // Definition
+        document.getElementById('theory-definition').textContent = theory.definition;
+
+        // Notation
+        const notationEl = document.getElementById('theory-notation');
+        if (theory.notation) {
+            let html = `<div class="formula">${theory.notation.formula}</div>`;
+            html += '<div class="terms">';
+            theory.notation.terms.forEach(t => {
+                html += `<span class="term-symbol">${t.symbol}</span>`;
+                html += `<span class="term-desc"><strong>${t.name}</strong> — ${t.desc}</span>`;
+            });
+            html += '</div>';
+            notationEl.innerHTML = html;
+        } else {
+            notationEl.innerHTML = '';
+        }
+
+        // Units
+        const unitsEl = document.getElementById('theory-units');
+        unitsEl.textContent = theory.units || '';
+
+        // SVG illustration
+        const svgEl = document.getElementById('theory-svg');
+        svgEl.innerHTML = '';
+        if (theory.svgIllustration) {
+            this.renderTheorySVG(svgEl, theory.svgIllustration, week);
+        }
+
+        // Real-life examples
+        const examplesEl = document.getElementById('theory-examples');
+        examplesEl.innerHTML = '';
+        if (theory.realLife) {
+            theory.realLife.forEach(ex => {
+                const div = document.createElement('div');
+                div.className = 'theory-example';
+                div.innerHTML = `<span class="theory-example-emoji">${ex.emoji}</span><span class="theory-example-text">${ex.text}</span>`;
+                examplesEl.appendChild(div);
+            });
+        }
+
+        // Auto-open on first visit, collapsed on return
+        if (!this.state.theoryVisited[weekId]) {
+            theoryBlock.classList.remove('collapsed');
+            this.state.theoryVisited[weekId] = true;
+            this.save();
+        } else {
+            theoryBlock.classList.add('collapsed');
+        }
+    },
+
+    toggleTheory() {
+        document.getElementById('theory-block').classList.toggle('collapsed');
+    },
+
+    renderTheorySVG(container, key, week) {
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 300 160');
+        svg.style.maxWidth = '300px';
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+
+        const text = (x, y, txt, size = 12, color = '#64748b', anchor = 'middle') => {
+            const t = document.createElementNS(ns, 'text');
+            t.setAttribute('x', x); t.setAttribute('y', y);
+            t.setAttribute('text-anchor', anchor);
+            t.setAttribute('font-size', size);
+            t.setAttribute('font-family', 'Nunito, sans-serif');
+            t.setAttribute('fill', color);
+            t.textContent = txt;
+            svg.appendChild(t);
+        };
+        const line = (x1, y1, x2, y2, color = '#94a3b8', w = 2) => {
+            const l = document.createElementNS(ns, 'line');
+            l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+            l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+            l.setAttribute('stroke', color); l.setAttribute('stroke-width', w);
+            svg.appendChild(l);
+        };
+        const circle = (cx, cy, r, fill) => {
+            const c = document.createElementNS(ns, 'circle');
+            c.setAttribute('cx', cx); c.setAttribute('cy', cy);
+            c.setAttribute('r', r); c.setAttribute('fill', fill);
+            svg.appendChild(c);
+        };
+        const rect = (x, y, w, h, fill, stroke = 'none', sw = 0, rx = 0) => {
+            const r = document.createElementNS(ns, 'rect');
+            r.setAttribute('x', x); r.setAttribute('y', y);
+            r.setAttribute('width', w); r.setAttribute('height', h);
+            r.setAttribute('fill', fill); r.setAttribute('rx', rx);
+            if (stroke !== 'none') { r.setAttribute('stroke', stroke); r.setAttribute('stroke-width', sw); }
+            svg.appendChild(r);
+        };
+
+        switch (key) {
+            case 'add': {
+                // Number line with forward jumps: 3 + 5 = 8
+                svg.setAttribute('viewBox', '0 0 300 100');
+                line(20, 60, 280, 60, '#cbd5e1', 2);
+                for (let i = 0; i <= 10; i++) {
+                    const x = 20 + i * 26;
+                    line(x, 55, x, 65, '#94a3b8', 1);
+                    text(x, 80, i, 10, '#64748b');
+                }
+                // Highlight 3
+                circle(20 + 3 * 26, 60, 5, '#6366f1');
+                // Jump arcs from 3 to 8
+                for (let j = 3; j < 8; j++) {
+                    const x1 = 20 + j * 26, x2 = 20 + (j + 1) * 26;
+                    const path = document.createElementNS(ns, 'path');
+                    path.setAttribute('d', `M${x1},55 Q${(x1 + x2) / 2},${35} ${x2},55`);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke', '#22c55e');
+                    path.setAttribute('stroke-width', 2);
+                    svg.appendChild(path);
+                }
+                circle(20 + 8 * 26, 60, 6, '#22c55e');
+                text(150, 20, '3 + 5 = 8', 14, '#1e293b');
+                break;
+            }
+            case 'subtract': {
+                svg.setAttribute('viewBox', '0 0 300 100');
+                line(20, 60, 280, 60, '#cbd5e1', 2);
+                for (let i = 0; i <= 10; i++) {
+                    const x = 20 + i * 26;
+                    line(x, 55, x, 65, '#94a3b8', 1);
+                    text(x, 80, i + 2, 10, '#64748b');
+                }
+                circle(20 + 10 * 26, 60, 5, '#6366f1');
+                for (let j = 10; j > 5; j--) {
+                    const x1 = 20 + j * 26, x2 = 20 + (j - 1) * 26;
+                    const path = document.createElementNS(ns, 'path');
+                    path.setAttribute('d', `M${x1},55 Q${(x1 + x2) / 2},${35} ${x2},55`);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke', '#ef4444');
+                    path.setAttribute('stroke-width', 2);
+                    svg.appendChild(path);
+                }
+                circle(20 + 5 * 26, 60, 6, '#ef4444');
+                text(150, 20, '12 − 5 = 7', 14, '#1e293b');
+                break;
+            }
+            case 'multiply-array': {
+                // 3x4 array
+                svg.setAttribute('viewBox', '0 0 200 140');
+                text(100, 16, '3 × 4 = 12', 14, '#1e293b');
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        circle(50 + c * 30, 45 + r * 30, 10, r % 2 === 0 ? '#6366f1' : '#ec4899');
+                    }
+                }
+                text(15, 48, '3', 13, '#6366f1', 'end');
+                text(15, 78, 'ряда', 9, '#64748b', 'end');
+                text(95, 128, '4 в каждом', 11, '#64748b');
+                break;
+            }
+            case 'fraction-bar': {
+                svg.setAttribute('viewBox', '0 0 280 110');
+                // Bar model: 3/4
+                text(140, 16, 'Дробь 3/4', 14, '#1e293b');
+                for (let i = 0; i < 4; i++) {
+                    const fill = i < 3 ? '#6366f1' : '#e2e8f0';
+                    rect(30 + i * 55, 30, 52, 30, fill, '#94a3b8', 1, 4);
+                }
+                text(140, 80, '|————————|', 10, '#cbd5e1');
+                // Number line 0 to 1
+                line(30, 95, 250, 95, '#cbd5e1', 2);
+                line(30, 90, 30, 100, '#94a3b8', 1);
+                line(250, 90, 250, 100, '#94a3b8', 1);
+                text(30, 108, '0', 10, '#64748b');
+                text(250, 108, '1', 10, '#64748b');
+                const mark = 30 + (250 - 30) * 0.75;
+                circle(mark, 95, 5, '#6366f1');
+                text(mark, 86, '3/4', 11, '#6366f1');
+                break;
+            }
+            case 'divide-groups': {
+                svg.setAttribute('viewBox', '0 0 280 130');
+                text(140, 16, '12 ÷ 3 = 4', 14, '#1e293b');
+                const colors = ['#6366f1', '#ec4899', '#f59e0b'];
+                for (let g = 0; g < 3; g++) {
+                    rect(15 + g * 90, 28, 80, 55, 'none', colors[g], 2, 8);
+                    text(55 + g * 90, 95, `гр. ${g + 1}`, 10, colors[g]);
+                    for (let d = 0; d < 4; d++) {
+                        circle(35 + g * 90 + (d % 2) * 25, 43 + Math.floor(d / 2) * 22, 7, colors[g]);
+                    }
+                }
+                text(140, 120, '3 группы по 4', 11, '#64748b');
+                break;
+            }
+            case 'area-grid': {
+                svg.setAttribute('viewBox', '0 0 240 160');
+                text(120, 16, 'S = 4 × 3 = 12 кв.ед.', 13, '#1e293b');
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        rect(40 + c * 35, 30 + r * 35, 33, 33, r % 2 === c % 2 ? '#dbeafe' : '#e0e7ff', '#6366f1', 1, 2);
+                    }
+                }
+                text(110, 145, '4', 12, '#6366f1');
+                text(22, 80, '3', 12, '#6366f1');
+                // arrows
+                line(40, 140, 178, 140, '#6366f1', 1.5);
+                line(28, 30, 28, 130, '#6366f1', 1.5);
+                break;
+            }
+            case 'perimeter-arrows': {
+                svg.setAttribute('viewBox', '0 0 260 160');
+                text(130, 16, 'P = (5 + 3) × 2 = 16', 13, '#1e293b');
+                rect(50, 35, 150, 90, '#f0f9ff', '#6366f1', 2, 4);
+                // Top arrow
+                text(125, 30, '5', 13, '#22c55e');
+                // Bottom arrow
+                text(125, 145, '5', 13, '#22c55e');
+                // Left arrow
+                text(35, 82, '3', 13, '#ec4899');
+                // Right arrow
+                text(215, 82, '3', 13, '#ec4899');
+                // Small direction arrows at corners
+                text(90, 50, '→', 16, '#22c55e');
+                text(160, 50, '→', 16, '#22c55e');
+                break;
+            }
+            case 'divide-remainder': {
+                svg.setAttribute('viewBox', '0 0 280 120');
+                text(140, 16, '17 ÷ 5 = 3 (ост. 2)', 13, '#1e293b');
+                for (let g = 0; g < 3; g++) {
+                    rect(10 + g * 75, 28, 70, 45, 'none', '#6366f1', 2, 8);
+                    for (let d = 0; d < 5; d++) {
+                        circle(23 + g * 75 + d * 13, 52, 5, '#6366f1');
+                    }
+                }
+                // Remainder
+                rect(240, 28, 35, 45, 'none', '#f59e0b', 2, 8);
+                circle(250, 52, 5, '#f59e0b');
+                circle(263, 52, 5, '#f59e0b');
+                text(140, 95, '3 группы по 5 = 15', 10, '#64748b');
+                text(257, 95, 'ост. 2', 10, '#f59e0b');
+                break;
+            }
+            case 'angle-types': {
+                svg.setAttribute('viewBox', '0 0 300 130');
+                // Acute angle
+                line(30, 110, 70, 30, '#6366f1', 2.5);
+                line(30, 110, 100, 110, '#6366f1', 2.5);
+                const arcA = document.createElementNS(ns, 'path');
+                arcA.setAttribute('d', 'M50,110 A20,20 0 0,0 42,92');
+                arcA.setAttribute('fill', 'none'); arcA.setAttribute('stroke', '#6366f1'); arcA.setAttribute('stroke-width', 1.5);
+                svg.appendChild(arcA);
+                text(65, 125, 'Острый <90°', 10, '#6366f1');
+                // Right angle
+                line(130, 110, 130, 30, '#22c55e', 2.5);
+                line(130, 110, 210, 110, '#22c55e', 2.5);
+                rect(130, 90, 20, 20, 'none', '#22c55e', 1.5);
+                text(170, 125, 'Прямой =90°', 10, '#22c55e');
+                // Obtuse angle
+                line(240, 110, 210, 30, '#f59e0b', 2.5);
+                line(240, 110, 290, 110, '#f59e0b', 2.5);
+                const arcO = document.createElementNS(ns, 'path');
+                arcO.setAttribute('d', 'M260,110 A20,20 0 0,0 235,88');
+                arcO.setAttribute('fill', 'none'); arcO.setAttribute('stroke', '#f59e0b'); arcO.setAttribute('stroke-width', 1.5);
+                svg.appendChild(arcO);
+                text(260, 125, 'Тупой >90°', 10, '#f59e0b');
+                break;
+            }
+            case 'unit-ladder': {
+                svg.setAttribute('viewBox', '0 0 280 140');
+                const units = ['мм', 'см', 'дм', 'м', 'км'];
+                const mults = ['×10', '×10', '×10', '×1000'];
+                for (let i = 0; i < 5; i++) {
+                    const x = 20 + i * 60, y = 110 - i * 20;
+                    rect(x, y, 50, 25, i === 4 ? '#6366f1' : '#dbeafe', '#6366f1', 1.5, 6);
+                    text(x + 25, y + 17, units[i], 12, i === 4 ? '#fff' : '#1e293b');
+                    if (i < 4) {
+                        text(x + 55, y - 5, mults[i], 9, '#22c55e');
+                        // Arrow up
+                        const arrow = document.createElementNS(ns, 'path');
+                        arrow.setAttribute('d', `M${x + 50},${y + 5} L${x + 65},${y - 10}`);
+                        arrow.setAttribute('fill', 'none'); arrow.setAttribute('stroke', '#22c55e'); arrow.setAttribute('stroke-width', 1.5);
+                        svg.appendChild(arrow);
+                    }
+                }
+                text(140, 138, '↑ умножай   ↓ дели', 10, '#64748b');
+                break;
+            }
+            case 'velocity-triangle': {
+                svg.setAttribute('viewBox', '0 0 200 150');
+                // Triangle
+                const tri = document.createElementNS(ns, 'polygon');
+                tri.setAttribute('points', '100,15 30,130 170,130');
+                tri.setAttribute('fill', '#f0f9ff'); tri.setAttribute('stroke', '#6366f1'); tri.setAttribute('stroke-width', 2);
+                svg.appendChild(tri);
+                line(30, 90, 170, 90, '#6366f1', 1.5);
+                text(100, 65, 'd', 22, '#22c55e');
+                text(70, 115, 'v', 20, '#ec4899');
+                text(130, 115, 't', 20, '#f59e0b');
+                text(100, 148, 'Закрой что ищешь!', 10, '#64748b');
+                break;
+            }
+            case 'gravity-planets': {
+                svg.setAttribute('viewBox', '0 0 280 130');
+                // Earth
+                text(80, 18, '🌍 Земля', 13, '#1e293b');
+                text(80, 40, 'g ≈ 10', 11, '#6366f1');
+                text(80, 58, '5 кг → 50 Н', 12, '#22c55e');
+                circle(80, 85, 30, '#dbeafe');
+                text(80, 90, '5 кг', 11, '#6366f1');
+                // Moon
+                text(200, 18, '🌙 Луна', 13, '#1e293b');
+                text(200, 40, 'g ≈ 1.6', 11, '#94a3b8');
+                text(200, 58, '5 кг → 8 Н', 12, '#f59e0b');
+                circle(200, 85, 20, '#f1f5f9');
+                text(200, 90, '5 кг', 11, '#94a3b8');
+                text(140, 125, 'Масса та же, вес разный!', 10, '#64748b');
+                break;
+            }
+            case 'lever-balance': {
+                svg.setAttribute('viewBox', '0 0 280 120');
+                // Fulcrum triangle
+                const fulcrum = document.createElementNS(ns, 'polygon');
+                fulcrum.setAttribute('points', '140,80 130,100 150,100');
+                fulcrum.setAttribute('fill', '#94a3b8');
+                svg.appendChild(fulcrum);
+                // Beam
+                line(30, 78, 250, 78, '#1e293b', 3);
+                // Left weight (heavy, close)
+                rect(55, 55, 30, 23, '#ef4444', 'none', 0, 4);
+                text(70, 72, '6Н', 10, '#fff');
+                text(70, 50, 'l₁=2', 10, '#ef4444');
+                // Right weight (light, far)
+                rect(195, 55, 30, 23, '#6366f1', 'none', 0, 4);
+                text(210, 72, '3Н', 10, '#fff');
+                text(210, 50, 'l₂=4', 10, '#6366f1');
+                // Labels
+                text(140, 115, '6×2 = 3×4 = 12 ✓', 11, '#22c55e');
+                break;
+            }
+            case 'light-shadow': {
+                svg.setAttribute('viewBox', '0 0 300 130');
+                // Sun
+                text(30, 25, '☀️', 24);
+                // Rays
+                for (let i = 0; i < 5; i++) {
+                    line(50, 20 + i * 5, 140, 40 + i * 15, '#f59e0b', 1);
+                }
+                // Object
+                rect(140, 30, 25, 70, '#64748b', '#1e293b', 1.5, 2);
+                text(152, 115, 'предмет', 9, '#1e293b');
+                // Shadow
+                const shadow = document.createElementNS(ns, 'polygon');
+                shadow.setAttribute('points', '165,100 280,100 165,30');
+                shadow.setAttribute('fill', 'rgba(0,0,0,0.15)');
+                svg.appendChild(shadow);
+                text(220, 95, 'тень', 11, '#64748b');
+                // Ground line
+                line(10, 100, 290, 100, '#cbd5e1', 1.5);
+                break;
+            }
+            case 'density-water': {
+                svg.setAttribute('viewBox', '0 0 240 140');
+                // Water container
+                rect(40, 30, 160, 90, '#dbeafe', '#93c5fd', 2, 6);
+                // Water line
+                line(40, 70, 200, 70, '#60a5fa', 1);
+                text(210, 74, 'вода', 9, '#60a5fa');
+                text(210, 85, 'ρ=1', 8, '#60a5fa');
+                // Floating object (wood)
+                rect(60, 55, 35, 25, '#a3e635', '#65a30d', 1.5, 4);
+                text(77, 72, '🪵', 11);
+                text(77, 50, '0.5', 9, '#65a30d');
+                // Sinking object (stone)
+                circle(150, 100, 14, '#94a3b8');
+                text(150, 105, '🪨', 10);
+                text(150, 130, '2.5', 9, '#64748b');
+                // Labels
+                text(77, 25, 'плавает ↑', 9, '#22c55e');
+                text(150, 25, 'тонет ↓', 9, '#ef4444');
+                break;
+            }
+        }
+
+        container.appendChild(svg);
     },
 
     loadQuestion() {
@@ -964,11 +1363,11 @@ const app = {
         const dashArray = 2 * Math.PI * radius;
         const dashOffset = dashArray * (1 - percentage);
 
-        // Яркие контрастные цвета для дробей
+        // Мягкие тёплые цвета для дробей
         const colors = {
-            'primary': '#00d4ff',      // Яркий циан
-            'secondary': '#ff6b6b',    // Яркий коралловый
-            'accent': '#ffd93d'        // Яркий жёлтый
+            'primary': '#6366f1',      // Индиго
+            'secondary': '#ec4899',    // Розовый
+            'accent': '#f59e0b'        // Янтарный
         };
         const strokeColor = colors[colorVar] || colors.primary;
 
@@ -1527,7 +1926,7 @@ const app = {
         triangle.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:8px;';
 
         const top = document.createElement('div');
-        top.style.cssText = 'font-size:1.6rem; font-weight:900; color:var(--primary); text-shadow:0 0 10px var(--primary);';
+        top.style.cssText = 'font-size:1.6rem; font-weight:900; color:var(--primary);';
         top.textContent = dividend;
         triangle.appendChild(top);
 
@@ -3322,11 +3721,19 @@ ${q.itemDensity} ${q.itemDensity > 1 ? '> 1 → скорее всего тоне
 
     // ─── SAVE/LOAD ───
     save() {
-        localStorage.setItem('mathSempaiSave', JSON.stringify(this.state));
+        localStorage.setItem('mateDojoSave', JSON.stringify(this.state));
     },
 
     load() {
-        const saved = localStorage.getItem('mathSempaiSave');
+        let saved = localStorage.getItem('mateDojoSave');
+        // Миграция со старого ключа
+        if (!saved) {
+            saved = localStorage.getItem('mathSempaiSave');
+            if (saved) {
+                localStorage.setItem('mateDojoSave', saved);
+                localStorage.removeItem('mathSempaiSave');
+            }
+        }
         if (saved) {
             try {
                 this.state = { ...this.state, ...JSON.parse(saved) };

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Математика Исаги | Обучение умножению</title>
+    <title>Матэ Додзё | Обучение математике</title>
     <link rel="stylesheet" href="style.css?v=2">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
@@ -21,29 +21,29 @@
         <!-- ЭКРАН ПРИВЕТСТВИЯ -->
         <div id="screen-welcome" class="screen">
             <div class="welcome-wrapper">
-                <div class="mascot">⚽</div>
-                <h1 class="title">Математика Исаги!</h1>
-                <p class="subtitle">Путь чемпиона таблицы умножения</p>
+                <div class="mascot">🥋</div>
+                <h1 class="title">Матэ Додзё!</h1>
+                <p class="subtitle">Путь мастера математики</p>
 
                 <div class="welcome-speech">
-                    <p>Привет! Я — <strong>Исаги</strong>, твой наставник по таблице умножения.</p>
-                    <p>Вместе мы освоим секретные техники — и умножение станет для тебя проще простого!</p>
+                    <p>Привет! Добро пожаловать в <strong>Матэ Додзё</strong> — место, где ты станешь мастером математики!</p>
+                    <p>Вместе мы освоим секретные техники — и математика станет для тебя проще простого!</p>
                 </div>
 
                 <div class="welcome-input-group">
-                    <label for="name-input">Как тебя зовут, чемпион?</label>
+                    <label for="name-input">Как тебя зовут, ученик?</label>
                     <input type="text" id="name-input" placeholder="Введи своё имя..." maxlength="20" autocomplete="off">
                 </div>
 
-                <button class="btn-main" id="btn-start" onclick="app.submitName()">⚡ Начать путь!</button>
+                <button class="btn-main" id="btn-start" onclick="app.submitName()">🥋 Начать путь!</button>
             </div>
         </div>
 
         <!-- ГЛАВНЫЙ ЭКРАН -->
         <div id="screen-home" class="screen">
-            <div class="mascot">⚽</div>
-            <h1 class="title" id="home-greeting">Математика Исаги!</h1>
-            <p class="subtitle" id="home-subtitle">Путь чемпиона таблицы умножения</p>
+            <div class="mascot">🥋</div>
+            <h1 class="title" id="home-greeting">Матэ Додзё!</h1>
+            <p class="subtitle" id="home-subtitle">Путь мастера математики</p>
 
             <div class="stats-box">
                 <div class="stat">
@@ -60,8 +60,8 @@
                 </div>
             </div>
 
-            <button class="btn-main" onclick="app.nav('screen-map')">⚔️ Карта Приключений</button>
-            <button class="btn-sec" onclick="app.nav('screen-practice')">🥊 Тренировка</button>
+            <button class="btn-main" onclick="app.nav('screen-map')">📜 Карта Глав</button>
+            <button class="btn-sec" onclick="app.nav('screen-practice')">🥋 Тренировка</button>
             <button class="btn-sec" onclick="app.nav('screen-achievements')">🏆 Зал Славы</button>
         </div>
 
@@ -89,6 +89,21 @@
             </div>
 
             <div class="lesson-area">
+                <!-- Теория (раскрывающийся блок) -->
+                <div class="theory-block" id="theory-block" style="display:none;">
+                    <div class="theory-header" onclick="app.toggleTheory()">
+                        <h4>📖 Теория</h4>
+                        <span class="theory-toggle" id="theory-toggle">▼</span>
+                    </div>
+                    <div class="theory-content" id="theory-content">
+                        <div class="theory-definition" id="theory-definition"></div>
+                        <div class="theory-notation" id="theory-notation"></div>
+                        <div class="theory-units" id="theory-units"></div>
+                        <div class="theory-svg" id="theory-svg"></div>
+                        <div class="theory-examples" id="theory-examples"></div>
+                    </div>
+                </div>
+
                 <!-- Стратегия -->
                 <div class="strategy-box">
                     <h4>⚡ Секретная техника</h4>
@@ -311,7 +326,7 @@
     <!-- МОДАЛЬНОЕ ОКНО (онбординг / уведомления) -->
     <div id="modal-overlay" class="modal-overlay">
         <div id="modal-box" class="modal-box">
-            <div id="modal-icon" class="modal-icon">⚽</div>
+            <div id="modal-icon" class="modal-icon">🥋</div>
             <h3 id="modal-title" class="modal-title">Заголовок</h3>
             <p id="modal-text" class="modal-text">Текст</p>
             <div class="modal-actions">
