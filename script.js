@@ -1059,6 +1059,7 @@ const app = {
         const lessonData = this.getLessonData(week, question);
         document.getElementById('strategy-text').innerText = lessonData.strategy;
         this.updateVisualDesc(question);
+        this.updateVisualLabels(question.operation || '×');
         this.setVisual(this.state.currentVisual, question);
         this.updateProgress();
         
@@ -1195,6 +1196,15 @@ const app = {
     },
 
     // ─── VISUALS ───
+    updateVisualLabels(operation) {
+        const key = (operation || '').startsWith('fraction') ? 'fraction' : operation;
+        const labels = CURRICULUM.visualLabels[key] || CURRICULUM.visualLabels['×'];
+        document.querySelectorAll('.visual-controls button').forEach(btn => {
+            const type = btn.dataset.type;
+            if (labels[type]) btn.textContent = labels[type];
+        });
+    },
+
     setVisual(type, question) {
         this.state.currentVisual = type;
         const container = document.getElementById('visual-container');
