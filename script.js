@@ -12,7 +12,9 @@ const app = {
         currentQ: null,
         currentVisual: 'array',
         unlockedWeeks: [1],
-        achievements: []
+        achievements: [],
+        divideTotal: 0,
+        geometryTotal: 0
     },
 
     // ─── INIT ───
@@ -242,7 +244,51 @@ const app = {
                 const num1 = Math.floor(Math.random() * (denom - 1)) + 2;
                 const num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
                 question = { n1: num1, n2: num2, denom, ans: num1 - num2, operation: 'fraction-sub' };
+            } else if (subOp === 'equivalent') {
+                // Равные дроби: 1/2 = ?/4 — найти числитель
+                const bases = [{n:1,d:2},{n:1,d:3},{n:2,d:3},{n:1,d:4},{n:3,d:4},{n:1,d:5},{n:2,d:5}];
+                const base = bases[Math.floor(Math.random() * bases.length)];
+                const factor = Math.floor(Math.random() * 3) + 2; // 2, 3, или 4
+                question = {
+                    n1: base.n, n2: base.d,
+                    factor, newDenom: base.d * factor,
+                    ans: base.n * factor,
+                    operation: 'fraction-equiv'
+                };
+            } else if (subOp === 'mixed') {
+                // Смешанные числа: неправильная дробь → целая + остаток
+                const denom = [2, 3, 4, 5][Math.floor(Math.random() * 4)];
+                const whole = Math.floor(Math.random() * 3) + 1; // 1, 2, или 3
+                const remainder = Math.floor(Math.random() * (denom - 1)) + 1;
+                const numerator = whole * denom + remainder;
+                question = { numerator, denom, whole, remainder, ans: whole, ansRemainder: remainder, operation: 'fraction-mixed' };
             }
+        } else if (operation === 'divide') {
+            // Деление: гарантированно целый ответ
+            const divisors = week.divisors || week.multipliers;
+            const divisor = divisors[Math.floor(Math.random() * divisors.length)];
+            const quotient = Math.floor(Math.random() * 9) + 2; // 2-10
+            const dividend = divisor * quotient;
+            question = { n1: dividend, n2: divisor, ans: quotient, operation: '÷' };
+        } else if (operation === 'mix-mult-div') {
+            // Микс умножения и деления
+            const mult = week.multipliers[Math.floor(Math.random() * week.multipliers.length)];
+            const num2 = Math.floor(Math.random() * 9) + 2;
+            if (Math.random() < 0.5) {
+                question = { n1: mult, n2: num2, ans: mult * num2, operation: '×' };
+            } else {
+                question = { n1: mult * num2, n2: mult, ans: num2, operation: '÷' };
+            }
+        } else if (operation === 'area') {
+            // Площадь прямоугольника: S = a × b
+            const a = Math.floor(Math.random() * 9) + 2;
+            const b = Math.floor(Math.random() * 9) + 2;
+            question = { n1: a, n2: b, ans: a * b, operation: 'area' };
+        } else if (operation === 'perimeter') {
+            // Периметр прямоугольника: P = (a + b) × 2
+            const a = Math.floor(Math.random() * 8) + 2;
+            const b = Math.floor(Math.random() * 8) + 2;
+            question = { n1: a, n2: b, ans: (a + b) * 2, operation: 'perimeter' };
         } else if (operation === 'mix') {
             // Великий микс: случайная операция
             const ops = ['multiply', 'add', 'subtract', 'fraction'];
@@ -282,7 +328,11 @@ const app = {
             'add': `Глава ${this.state.week}: Сложение`,
             'subtract': `Глава ${this.state.week}: Вычитание`,
             'fraction': `Глава ${this.state.week}: Дроби`,
-            'mix': `Глава ${this.state.week}: Великий Микс`
+            'mix': `Глава ${this.state.week}: Великий Микс`,
+            'divide': `Глава ${this.state.week}: Деление`,
+            'mix-mult-div': `Глава ${this.state.week}: Умножение и Деление`,
+            'area': `Глава ${this.state.week}: Площадь`,
+            'perimeter': `Глава ${this.state.week}: Периметр`
         };
         document.getElementById('lesson-title').innerText = titleMap[operation] || `Глава ${this.state.week}`;
 
@@ -328,8 +378,28 @@ const app = {
             opEl.textContent = '−';
             answerInput.value = '';
             answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'fraction-equiv') {
+            // Равные дроби: найти числитель
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = '=';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'fraction-mixed') {
+            // Смешанные числа: найти целую часть (потом остаток проверяем тоже)
+            n1El.textContent = question.numerator;
+            n2El.textContent = question.denom;
+            opEl.textContent = '/';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'area' || question.operation === 'perimeter') {
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = question.operation === 'area' ? '×' : '+';
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
         } else {
-            // Обычные операции: сложение, вычитание, умножение
+            // Обычные операции: сложение, вычитание, умножение, деление
             n1El.textContent = question.n1;
             n2El.textContent = question.n2;
             opEl.textContent = question.operation || '×';
@@ -387,6 +457,31 @@ const app = {
             return week.lessons[0];
         } else if (operation === 'mix') {
             return week.lessons[0];
+        } else if (operation === 'divide') {
+            const divisorLesson = week.lessons.find(l => l.mult === question.n2);
+            if (divisorLesson) return divisorLesson;
+            const s = CURRICULUM.strategyForOperation.divide;
+            return {
+                strategy: `${s.name}: ${s.formula(question.n1, question.n2)}`,
+                hint: `Деление: ${question.n1} ÷ ${question.n2}`,
+                fingerTip: `${question.n2} × ? = ${question.n1} → ? = ${question.ans}`
+            };
+        } else if (operation === 'mix-mult-div') {
+            return week.lessons[0];
+        } else if (operation === 'area') {
+            const s = CURRICULUM.strategyForOperation.area;
+            return {
+                strategy: `${s.name}: ${s.formula(question.n1, question.n2)}`,
+                hint: week.lessons[0].hint,
+                fingerTip: week.lessons[0].fingerTip
+            };
+        } else if (operation === 'perimeter') {
+            const s = CURRICULUM.strategyForOperation.perimeter;
+            return {
+                strategy: `${s.name}: ${s.formula(question.n1, question.n2)}`,
+                hint: week.lessons[0].hint,
+                fingerTip: week.lessons[0].fingerTip
+            };
         }
         return week.lessons[0];
     },
@@ -405,6 +500,16 @@ const app = {
             desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.denom}</span></span> + <span class="frac"><span class="frac-n">${q.n2}</span><span class="frac-d">${q.denom}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span>`;
         } else if (q.operation === 'fraction-sub') {
             desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.denom}</span></span> − <span class="frac"><span class="frac-n">${q.n2}</span><span class="frac-d">${q.denom}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span>`;
+        } else if (q.operation === 'fraction-equiv') {
+            desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.n2}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.newDenom}</span></span>`;
+        } else if (q.operation === 'fraction-mixed') {
+            desc.innerHTML = `Неправильная дробь <span class="frac"><span class="frac-n">${q.numerator}</span><span class="frac-d">${q.denom}</span></span> = ? целых и <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span> — введи целую часть`;
+        } else if (q.operation === '÷') {
+            desc.innerText = `${q.n1} ÷ ${q.n2} = ? (${q.n2} × ? = ${q.n1})`;
+        } else if (q.operation === 'area') {
+            desc.innerText = `Прямоугольник ${q.n1} × ${q.n2}. Чему равна площадь S = ${q.n1} × ${q.n2} = ?`;
+        } else if (q.operation === 'perimeter') {
+            desc.innerText = `Прямоугольник ${q.n1} × ${q.n2}. Чему равен периметр P = (${q.n1} + ${q.n2}) × 2 = ?`;
         } else {
             desc.innerText = `${q.n1} ${operation} ${q.n2} = ?`;
         }
@@ -429,6 +534,19 @@ const app = {
             if (type === 'array') this.renderFractionVisual(container, q);
             else if (type === 'line') this.renderFractionLine(container, q);
             else this.renderFractionPie(container, q);
+        } else if (operation === '÷') {
+            if (type === 'array') this.renderDivideArray(container, q.n1, q.n2);
+            else if (type === 'line') this.renderDivideNumberLine(container, q.n1, q.n2);
+            else this.renderFactFamily(container, q.n1, q.n2, q.ans);
+        } else if (operation === 'area') {
+            // Площадь = тот же массив точек, только подпись другая
+            if (type === 'array') this.renderAreaArray(container, q.n1, q.n2);
+            else if (type === 'line') this.renderNumberLine(container, q.n1, q.n2);
+            else this.renderAreaFormula(container, q.n1, q.n2);
+        } else if (operation === 'perimeter') {
+            if (type === 'array') this.renderPerimeterRect(container, q.n1, q.n2);
+            else if (type === 'line') this.renderAddNumberLine(container, q.n1, q.n2);
+            else this.renderPerimeterFormula(container, q.n1, q.n2);
         } else if (operation === '+') {
             if (type === 'array') this.renderAddArray(container, q.n1, q.n2);
             else if (type === 'line') this.renderAddNumberLine(container, q.n1, q.n2);
@@ -476,6 +594,32 @@ const app = {
             const label = document.createElement('div');
             label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
             label.innerHTML = `Знаменатель: <strong>${q.denom}</strong>`;
+            container.appendChild(label);
+        } else if (q.operation === 'fraction-equiv') {
+            // Равные дроби: два пирога с одинаковой закрашенной долей
+            const wrap1 = this.createFractionPie(q.n1, q.n2, 'primary');
+            const wrap2 = this.createFractionPie(q.ans, q.newDenom, 'secondary');
+            container.appendChild(wrap1);
+            container.appendChild(wrap2);
+
+            const label = document.createElement('div');
+            label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
+            label.innerHTML = `Одинаковая доля — разные записи! Знаменатель ×${q.factor}`;
+            container.appendChild(label);
+        } else if (q.operation === 'fraction-mixed') {
+            // Смешанные числа: несколько целых пицц
+            for (let i = 0; i < q.whole; i++) {
+                const wrap = this.createFractionPie(q.denom, q.denom, 'primary');
+                container.appendChild(wrap);
+            }
+            if (q.remainder > 0) {
+                const wrap = this.createFractionPie(q.remainder, q.denom, 'secondary');
+                container.appendChild(wrap);
+            }
+
+            const label = document.createElement('div');
+            label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:12px;';
+            label.innerHTML = `<strong>${q.whole}</strong> целых пицц + <strong>${q.remainder}/${q.denom}</strong> от пиццы`;
             container.appendChild(label);
         } else {
             // Сравнение дробей
@@ -581,13 +725,17 @@ const app = {
 
         const info = document.createElement('div');
         info.style.cssText = 'text-align:center; margin-bottom:10px;';
-        
+
         if (q.operation === 'compare') {
             info.innerHTML = `Сравни дроби с одинаковым знаменателем <strong>${q.denom}</strong>`;
         } else if (q.operation === 'fraction-add') {
             info.innerHTML = `Сложи числители: <strong>${q.n1} + ${q.n2} = ?</strong>`;
         } else if (q.operation === 'fraction-sub') {
             info.innerHTML = `Вычти числители: <strong>${q.n1} − ${q.n2} = ?</strong>`;
+        } else if (q.operation === 'fraction-equiv') {
+            info.innerHTML = `Одинаковая доля — разные знаменатели: <strong>${q.n2}</strong> и <strong>${q.newDenom}</strong>`;
+        } else if (q.operation === 'fraction-mixed') {
+            info.innerHTML = `Неправильная дробь: числитель больше знаменателя!`;
         }
         container.appendChild(info);
 
@@ -996,6 +1144,214 @@ const app = {
         }
     },
 
+    // ─── ДЕЛЕНИЕ: Визуализация ───
+    renderDivideArray(container, dividend, divisor) {
+        const quotient = dividend / divisor;
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = `repeat(${quotient}, 18px)`;
+        container.style.gap = '6px';
+        container.style.justifyContent = 'center';
+        container.style.padding = '10px';
+
+        for (let r = 0; r < divisor; r++) {
+            for (let c = 0; c < quotient; c++) {
+                const dot = document.createElement('div');
+                dot.className = `dot ${r % 2 === 0 ? 'row-even' : 'row-odd'}`;
+                dot.style.animationDelay = `${(r * quotient + c) * 30}ms`;
+                container.appendChild(dot);
+            }
+        }
+
+        const label = document.createElement('div');
+        label.style.cssText = 'grid-column: 1 / -1; text-align: center; color: var(--text-dim); font-size: 0.85rem; margin-top: 8px;';
+        label.innerHTML = `<span style="color:var(--primary)">${dividend}</span> точек, <span style="color:var(--secondary)">${divisor}</span> строк → сколько столбцов?`;
+        container.appendChild(label);
+    },
+
+    renderDivideNumberLine(container, dividend, divisor) {
+        container.style.display = 'block';
+        container.style.padding = '10px 0';
+
+        const line = document.createElement('div');
+        line.className = 'number-line';
+        const steps = dividend / divisor;
+
+        for (let i = 0; i <= steps; i++) {
+            const step = document.createElement('div');
+            step.className = 'nl-step';
+            step.style.animationDelay = `${i * 100}ms`;
+
+            const num = document.createElement('div');
+            num.className = `nl-num ${i === steps ? 'final' : ''}`;
+            num.textContent = i === steps ? '?' : dividend - i * divisor;
+            step.appendChild(num);
+
+            if (i < steps) {
+                const arrow = document.createElement('span');
+                arrow.className = 'nl-arrow';
+                arrow.textContent = ` −${divisor} →`;
+                step.appendChild(arrow);
+            }
+            line.appendChild(step);
+        }
+        container.appendChild(line);
+
+        const label = document.createElement('div');
+        label.className = 'nl-label';
+        label.innerHTML = `Сколько раз вычтем <strong>${divisor}</strong> из <strong>${dividend}</strong>, чтобы дойти до 0?`;
+        container.appendChild(label);
+    },
+
+    renderFactFamily(container, dividend, divisor, quotient) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const title = document.createElement('div');
+        title.style.cssText = 'text-align:center; font-weight:800; font-size:0.95rem; color:var(--accent); margin-bottom:14px;';
+        title.textContent = 'Семья фактов';
+        container.appendChild(title);
+
+        const triangle = document.createElement('div');
+        triangle.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:8px;';
+
+        const top = document.createElement('div');
+        top.style.cssText = 'font-size:1.6rem; font-weight:900; color:var(--primary); text-shadow:0 0 10px var(--primary);';
+        top.textContent = dividend;
+        triangle.appendChild(top);
+
+        const lines = document.createElement('div');
+        lines.style.cssText = 'color:var(--text-dim); font-size:0.8rem;';
+        lines.textContent = '╱ ╲';
+        triangle.appendChild(lines);
+
+        const bottom = document.createElement('div');
+        bottom.style.cssText = 'display:flex; gap:24px; font-size:1.3rem; font-weight:700;';
+        bottom.innerHTML = `<span style="color:var(--secondary)">${divisor}</span><span style="color:var(--accent)">?</span>`;
+        triangle.appendChild(bottom);
+
+        container.appendChild(triangle);
+
+        const facts = document.createElement('div');
+        facts.style.cssText = 'margin-top:14px; display:flex; flex-direction:column; gap:4px; font-size:0.9rem; color:var(--text-dim);';
+        facts.innerHTML = `
+            <div>✖️ <strong>${divisor}</strong> × <strong style="color:var(--accent)">?</strong> = <strong style="color:var(--primary)">${dividend}</strong></div>
+            <div>➗ <strong style="color:var(--primary)">${dividend}</strong> ÷ <strong>${divisor}</strong> = <strong style="color:var(--accent)">?</strong></div>
+        `;
+        container.appendChild(facts);
+    },
+
+    // ─── ГЕОМЕТРИЯ: Визуализация ───
+    renderAreaArray(container, rows, cols) {
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = `repeat(${cols}, 18px)`;
+        container.style.gap = '4px';
+        container.style.justifyContent = 'center';
+        container.style.padding = '10px';
+        container.style.border = '2px dashed var(--accent)';
+        container.style.borderRadius = '8px';
+        container.style.position = 'relative';
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const cell = document.createElement('div');
+                cell.className = `dot ${r % 2 === 0 ? 'row-even' : 'row-odd'}`;
+                cell.style.animationDelay = `${(r * cols + c) * 25}ms`;
+                container.appendChild(cell);
+            }
+        }
+
+        const label = document.createElement('div');
+        label.style.cssText = 'grid-column: 1 / -1; text-align: center; color: var(--accent); font-size: 0.85rem; margin-top: 8px; font-weight:700;';
+        label.innerHTML = `S = <span style="color:var(--primary)">${rows}</span> × <span style="color:var(--secondary)">${cols}</span> = <strong>?</strong> кв. ед.`;
+        container.appendChild(label);
+    },
+
+    renderAreaFormula(container, a, b) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Площадь прямоугольника:</strong><br>
+Длина: <strong style="color:var(--primary)">${a}</strong><br>
+Ширина: <strong style="color:var(--secondary)">${b}</strong><br><br>
+Шаг 1: S = длина × ширина<br>
+Шаг 2: S = <strong>${a}</strong> × <strong>${b}</strong> = <strong style="color:var(--accent)">?</strong>`;
+        container.appendChild(info);
+    },
+
+    renderPerimeterRect(container, a, b) {
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.justifyContent = 'center';
+        container.style.alignItems = 'center';
+        container.style.padding = '20px';
+
+        const scale = Math.min(120 / Math.max(a, b), 14);
+        const w = b * scale;
+        const h = a * scale;
+        const svgW = w + 80;
+        const svgH = h + 80;
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+        svg.style.overflow = 'visible';
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', 40);
+        rect.setAttribute('y', 40);
+        rect.setAttribute('width', w);
+        rect.setAttribute('height', h);
+        rect.setAttribute('fill', 'rgba(var(--primary-rgb,0,212,255),0.1)');
+        rect.setAttribute('stroke', 'var(--primary)');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('rx', '4');
+        svg.appendChild(rect);
+
+        // Подписи сторон
+        const lblTop = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lblTop.setAttribute('x', 40 + w / 2);
+        lblTop.setAttribute('y', 28);
+        lblTop.setAttribute('text-anchor', 'middle');
+        lblTop.setAttribute('fill', 'var(--secondary)');
+        lblTop.setAttribute('font-size', '14');
+        lblTop.setAttribute('font-weight', '700');
+        lblTop.textContent = b;
+        svg.appendChild(lblTop);
+
+        const lblLeft = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lblLeft.setAttribute('x', 24);
+        lblLeft.setAttribute('y', 40 + h / 2);
+        lblLeft.setAttribute('text-anchor', 'middle');
+        lblLeft.setAttribute('fill', 'var(--primary)');
+        lblLeft.setAttribute('font-size', '14');
+        lblLeft.setAttribute('font-weight', '700');
+        lblLeft.textContent = a;
+        svg.appendChild(lblLeft);
+
+        container.appendChild(svg);
+
+        const label = document.createElement('div');
+        label.style.cssText = 'text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:8px; width:100%;';
+        label.innerHTML = `P = (<span style="color:var(--primary)">${a}</span> + <span style="color:var(--secondary)">${b}</span>) × 2 = ?`;
+        container.appendChild(label);
+    },
+
+    renderPerimeterFormula(container, a, b) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Периметр прямоугольника:</strong><br>
+Длина: <strong style="color:var(--primary)">${a}</strong><br>
+Ширина: <strong style="color:var(--secondary)">${b}</strong><br><br>
+Шаг 1: Сложи длину и ширину: ${a} + ${b} = <strong>${a+b}</strong><br>
+Шаг 2: Умножь на 2: ${a+b} × 2 = <strong style="color:var(--accent)">?</strong>`;
+        container.appendChild(info);
+    },
+
     // ─── CHECK ANSWER ───
     check() {
         const q = this.state.currentQ;
@@ -1018,6 +1374,9 @@ const app = {
         if (input === q.ans) {
             this.state.correct++;
             this.state.streak++;
+            // Трекинг для специальных достижений
+            if (q.operation === '÷') this.state.divideTotal = (this.state.divideTotal || 0) + 1;
+            if (q.operation === 'area' || q.operation === 'perimeter') this.state.geometryTotal = (this.state.geometryTotal || 0) + 1;
             if (this.state.streak > this.state.bestStreak) {
                 this.state.bestStreak = this.state.streak;
             }
@@ -1091,6 +1450,16 @@ const app = {
             return `Правильный ответ: ${q.ans}/${q.denom}.\nСложи числители: ${q.n1} + ${q.n2} = ${q.ans}`;
         } else if (operation === 'fraction-sub') {
             return `Правильный ответ: ${q.ans}/${q.denom}.\nВычти числители: ${q.n1} − ${q.n2} = ${q.ans}`;
+        } else if (operation === 'fraction-equiv') {
+            return `Правильный ответ: ${q.ans}/${q.newDenom}.\nУмножь числитель и знаменатель на ${q.factor}: ${q.n1}×${q.factor}=${q.ans}, ${q.n2}×${q.factor}=${q.newDenom}`;
+        } else if (operation === 'fraction-mixed') {
+            return `Правильный ответ: ${q.whole} целых и ${q.remainder}/${q.denom}.\n${q.numerator} ÷ ${q.denom} = ${q.whole} остаток ${q.remainder}`;
+        } else if (operation === '÷') {
+            return `Правильный ответ: ${q.ans}.\nМетод: ${q.n2} × ? = ${q.n1} → ? = ${q.ans}\nПроверка: ${q.n2} × ${q.ans} = ${q.n1} ✓`;
+        } else if (operation === 'area') {
+            return `Правильный ответ: ${q.ans}.\nПлощадь S = ${q.n1} × ${q.n2} = ${q.ans} кв. единиц`;
+        } else if (operation === 'perimeter') {
+            return `Правильный ответ: ${q.ans}.\nПериметр P = (${q.n1} + ${q.n2}) × 2 = ${q.n1+q.n2} × 2 = ${q.ans}`;
         } else if (operation === '+') {
             const s = CURRICULUM.strategyForOperation.add;
             return `Правильный ответ: ${q.ans}.\n${s.name}: ${s.formula(q.n1, q.n2)}`;
@@ -1187,6 +1556,8 @@ const app = {
             if (ach.type === 'accuracy' && accuracy >= ach.req && this.state.total >= 10) earned = true;
             if (ach.type === 'weeks' && this.state.unlockedWeeks.length >= ach.req) earned = true;
             if (ach.type === 'streak' && this.state.bestStreak >= ach.req) earned = true;
+            if (ach.type === 'divide_total' && (this.state.divideTotal || 0) >= ach.req) earned = true;
+            if (ach.type === 'geometry_total' && (this.state.geometryTotal || 0) >= ach.req) earned = true;
 
             if (earned) {
                 this.state.achievements.push(ach.id);
