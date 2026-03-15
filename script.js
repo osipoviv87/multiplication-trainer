@@ -14,7 +14,9 @@ const app = {
         unlockedWeeks: [1],
         achievements: [],
         divideTotal: 0,
-        geometryTotal: 0
+        geometryTotal: 0,
+        physicsTotal: 0,
+        currentSubject: 'math'
     },
 
     // ─── INIT ───
@@ -157,16 +159,24 @@ const app = {
     },
 
     // ─── MAP ───
+    switchSubject(subject) {
+        this.state.currentSubject = subject;
+        document.querySelectorAll('.subject-tab').forEach(t =>
+            t.classList.toggle('active', t.dataset.subject === subject)
+        );
+        this.renderMap();
+    },
+
     renderMap() {
         const container = document.getElementById('weeks-container');
         container.innerHTML = '';
-        CURRICULUM.weeks.forEach(week => {
-            // Все главы доступны сразу!
-            const isLocked = false;
+        const subject = this.state.currentSubject || 'math';
+        const weeks = CURRICULUM.subjects[subject].weeks;
+        weeks.forEach((week, idx) => {
             const div = document.createElement('div');
-            div.className = `week-card`;
+            div.className = 'week-card';
             div.innerHTML = `
-                <div class="week-num">${week.id}</div>
+                <div class="week-num">${idx + 1}</div>
                 <div class="week-title">${week.title}</div>
                 <div class="week-desc">${week.desc}</div>
                 <div class="week-status" style="color:var(--success)">
@@ -176,6 +186,10 @@ const app = {
             div.onclick = () => this.startLesson(week.id);
             container.appendChild(div);
         });
+        // Обновить вкладки
+        document.querySelectorAll('.subject-tab').forEach(t =>
+            t.classList.toggle('active', t.dataset.subject === subject)
+        );
     },
 
     // ─── LESSON ───
@@ -263,6 +277,14 @@ const app = {
                 const numerator = whole * denom + remainder;
                 question = { numerator, denom, whole, remainder, ans: whole, ansRemainder: remainder, operation: 'fraction-mixed' };
             }
+        } else if (operation === 'divide-remainder') {
+            // Деление с остатком: D = d × q + r, где r < d
+            const divisors = week.divisors || week.multipliers;
+            const divisor = divisors[Math.floor(Math.random() * divisors.length)];
+            const quotient = Math.floor(Math.random() * 8) + 2; // 2-9
+            const remainder = Math.floor(Math.random() * (divisor - 1)) + 1; // 1..divisor-1
+            const dividend = divisor * quotient + remainder;
+            question = { n1: dividend, n2: divisor, ans: quotient, ansRemainder: remainder, operation: 'divide-rem' };
         } else if (operation === 'divide') {
             // Деление: гарантированно целый ответ
             const divisors = week.divisors || week.multipliers;
@@ -289,6 +311,109 @@ const app = {
             const a = Math.floor(Math.random() * 8) + 2;
             const b = Math.floor(Math.random() * 8) + 2;
             question = { n1: a, n2: b, ans: (a + b) * 2, operation: 'perimeter' };
+        } else if (operation === 'angle-type') {
+            // Виды углов: случайный угол, определи тип
+            const angles = [
+                { deg: 30, type: 'acute' }, { deg: 45, type: 'acute' }, { deg: 60, type: 'acute' },
+                { deg: 15, type: 'acute' }, { deg: 75, type: 'acute' },
+                { deg: 90, type: 'right' },
+                { deg: 100, type: 'obtuse' }, { deg: 120, type: 'obtuse' }, { deg: 135, type: 'obtuse' },
+                { deg: 150, type: 'obtuse' }, { deg: 170, type: 'obtuse' }
+            ];
+            const angle = angles[Math.floor(Math.random() * angles.length)];
+            question = { degrees: angle.deg, ans: angle.type, operation: 'angle-type' };
+        } else if (operation === 'length-units') {
+            // Единицы длины: перевод
+            const conversions = [
+                { from: 'см', to: 'мм', factor: 10, maxVal: 10 },
+                { from: 'дм', to: 'см', factor: 10, maxVal: 10 },
+                { from: 'м', to: 'см', factor: 100, maxVal: 5 },
+                { from: 'м', to: 'дм', factor: 10, maxVal: 10 },
+                { from: 'км', to: 'м', factor: 1000, maxVal: 5 },
+                { from: 'мм', to: 'см', factor: 0.1, maxVal: 50 },
+                { from: 'см', to: 'дм', factor: 0.1, maxVal: 50 }
+            ];
+            const conv = conversions[Math.floor(Math.random() * conversions.length)];
+            const val = (Math.floor(Math.random() * conv.maxVal) + 1) * (conv.factor >= 1 ? 1 : 10);
+            const ans = conv.factor >= 1 ? val * conv.factor : val / (1 / conv.factor);
+            question = { n1: val, fromUnit: conv.from, toUnit: conv.to, ans: ans, operation: 'length-units' };
+        } else if (operation === 'physics-velocity') {
+            // Скорость: v=d/t, d=v*t, t=d/v
+            const speeds = [10, 20, 30, 40, 50, 60, 80, 100];
+            const times = [2, 3, 4, 5, 6];
+            const v = speeds[Math.floor(Math.random() * speeds.length)];
+            const t = times[Math.floor(Math.random() * times.length)];
+            const d = v * t;
+            const unknowns = ['v', 'd', 't'];
+            const unknown = unknowns[Math.floor(Math.random() * unknowns.length)];
+            if (unknown === 'v') question = { d, t, ans: v, unknown: 'v', operation: 'physics-velocity' };
+            else if (unknown === 'd') question = { v, t, ans: d, unknown: 'd', operation: 'physics-velocity' };
+            else question = { v, d, ans: t, unknown: 't', operation: 'physics-velocity' };
+        } else if (operation === 'physics-gravity') {
+            // Сила тяжести: W = m * 10 (g≈10)
+            const masses = [2, 3, 5, 8, 10, 15, 20, 25, 30, 50];
+            const m = masses[Math.floor(Math.random() * masses.length)];
+            if (Math.random() < 0.5) {
+                // Вес на Земле
+                question = { mass: m, planet: 'Земля', g: 10, ans: m * 10, operation: 'physics-gravity' };
+            } else {
+                // Вес на Луне (÷6, округлённо)
+                const mLuna = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60][Math.floor(Math.random() * 10)];
+                question = { mass: mLuna, planet: 'Луна', g: 10, ans: mLuna / 6, moonWeight: true, operation: 'physics-gravity' };
+            }
+        } else if (operation === 'physics-lever') {
+            // Рычаги: F1 * l1 = F2 * l2
+            const forces = [2, 3, 4, 5, 6, 8, 10];
+            const arms = [1, 2, 3, 4, 5, 6];
+            const f1 = forces[Math.floor(Math.random() * forces.length)];
+            const l1 = arms[Math.floor(Math.random() * arms.length)];
+            const product = f1 * l1;
+            // Ищем пару, где product делится нацело
+            const validPairs = [];
+            for (const f2 of forces) { if (product % f2 === 0 && product / f2 <= 6) validPairs.push({ f2, l2: product / f2 }); }
+            if (validPairs.length === 0) validPairs.push({ f2: product, l2: 1 });
+            const pair = validPairs[Math.floor(Math.random() * validPairs.length)];
+            if (Math.random() < 0.5) {
+                question = { f1, l1, l2: pair.l2, ans: pair.f2, unknown: 'f2', operation: 'physics-lever' };
+            } else {
+                question = { f1, l1, f2: pair.f2, ans: pair.l2, unknown: 'l2', operation: 'physics-lever' };
+            }
+        } else if (operation === 'physics-light') {
+            // Свет и тени: качественные вопросы (выбор из 3)
+            const questions = [
+                { text: 'Что нужно, чтобы появилась тень?', options: ['Только свет', 'Свет + непрозрачный предмет + экран', 'Темнота'], ans: 1 },
+                { text: 'Когда тень длиннее?', options: ['В полдень', 'Утром/вечером', 'Ночью'], ans: 1 },
+                { text: 'Свет распространяется...', options: ['По кривой', 'Прямолинейно', 'Только вниз'], ans: 1 },
+                { text: 'Что произойдёт, если поднести руку ближе к лампе?', options: ['Тень уменьшится', 'Тень увеличится', 'Тень не изменится'], ans: 1 },
+                { text: 'Зеркало отражает свет потому что...', options: ['Оно тяжёлое', 'Поверхность гладкая и блестящая', 'Оно прозрачное'], ans: 1 },
+                { text: 'Почему мы видим предметы?', options: ['Глаза излучают свет', 'Свет отражается от предметов в глаза', 'Предметы светятся сами'], ans: 1 }
+            ];
+            const q = questions[Math.floor(Math.random() * questions.length)];
+            question = { text: q.text, options: q.options, ans: q.ans, operation: 'physics-light' };
+        } else if (operation === 'physics-density') {
+            // Плотность: ρ = m / V, тонет или плывёт
+            if (Math.random() < 0.5) {
+                // Числовая: найди плотность
+                const masses = [100, 200, 300, 400, 500, 600, 800];
+                const volumes = [50, 100, 200, 250, 400, 500];
+                const m = masses[Math.floor(Math.random() * masses.length)];
+                const validV = volumes.filter(v => (m / v) === Math.floor(m / v));
+                const v = validV.length > 0 ? validV[Math.floor(Math.random() * validV.length)] : 100;
+                question = { mass: m, volume: v, ans: m / v, operation: 'physics-density', subType: 'calc' };
+            } else {
+                // Качественная: тонет или плывёт?
+                const items = [
+                    { name: 'Камень', density: 2.5, sinks: true },
+                    { name: 'Дерево', density: 0.5, sinks: false },
+                    { name: 'Железо', density: 7.8, sinks: true },
+                    { name: 'Пробка', density: 0.2, sinks: false },
+                    { name: 'Лёд', density: 0.9, sinks: false },
+                    { name: 'Кирпич', density: 1.8, sinks: true }
+                ];
+                const item = items[Math.floor(Math.random() * items.length)];
+                // ans: 1 = тонет, 2 = плывёт
+                question = { itemName: item.name, itemDensity: item.density, ans: item.sinks ? 1 : 2, operation: 'physics-density', subType: 'float' };
+            }
         } else if (operation === 'mix') {
             // Великий микс: случайная операция
             const ops = ['multiply', 'add', 'subtract', 'fraction'];
@@ -332,9 +457,17 @@ const app = {
             'divide': `Глава ${this.state.week}: Деление`,
             'mix-mult-div': `Глава ${this.state.week}: Умножение и Деление`,
             'area': `Глава ${this.state.week}: Площадь`,
-            'perimeter': `Глава ${this.state.week}: Периметр`
+            'perimeter': `Глава ${this.state.week}: Периметр`,
+            'divide-remainder': `Глава ${this.state.week}: Деление с остатком`,
+            'angle-type': 'Виды углов',
+            'length-units': 'Единицы длины',
+            'physics-velocity': 'Скорость, расстояние, время',
+            'physics-gravity': 'Сила тяжести и вес',
+            'physics-lever': 'Рычаги',
+            'physics-light': 'Свет и тени',
+            'physics-density': 'Плотность'
         };
-        document.getElementById('lesson-title').innerText = titleMap[operation] || `Глава ${this.state.week}`;
+        document.getElementById('lesson-title').innerText = titleMap[operation] || week.title || `Глава ${this.state.week}`;
 
         // Обновляем отображение уравнения
         const opEl = document.getElementById('q-op');
@@ -343,11 +476,17 @@ const app = {
         const answerInput = document.getElementById('answer-input');
         const fractionChoice = document.getElementById('fraction-choice');
         const equationContainer = document.getElementById('equation-container');
+        const remainderBlock = document.getElementById('remainder-input-block');
+        const angleChoice = document.getElementById('angle-choice');
+        const physicsChoice = document.getElementById('physics-choice');
 
         // Скрываем по умолчанию
         fractionChoice.style.display = 'none';
         answerInput.style.display = 'inline-block';
         equationContainer.style.display = 'block';
+        remainderBlock.style.display = 'none';
+        angleChoice.style.display = 'none';
+        physicsChoice.style.display = 'none';
 
         if (question.subOperation === 'fraction' && question.operation === 'compare') {
             // Сравнение дробей: показываем кнопки 1 или 2
@@ -392,12 +531,118 @@ const app = {
             opEl.textContent = '/';
             answerInput.value = '';
             answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'divide-rem') {
+            // Деление с остатком: скрываем стандартное поле, показываем два поля
+            n1El.textContent = question.n1;
+            n2El.textContent = question.n2;
+            opEl.textContent = '÷';
+            answerInput.style.display = 'none';
+            equationContainer.style.display = 'block';
+            remainderBlock.style.display = 'flex';
+            document.getElementById('quotient-input').value = '';
+            document.getElementById('remainder-input').value = '';
         } else if (question.operation === 'area' || question.operation === 'perimeter') {
             n1El.textContent = question.n1;
             n2El.textContent = question.n2;
             opEl.textContent = question.operation === 'area' ? '×' : '+';
             answerInput.value = '';
             answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'angle-type') {
+            // Углы: скрываем уравнение, показываем кнопки выбора
+            equationContainer.style.display = 'none';
+            answerInput.style.display = 'none';
+            angleChoice.style.display = 'flex';
+            this.selectedAngle = null;
+            angleChoice.querySelectorAll('.fraction-choice-btn').forEach(b => b.classList.remove('selected'));
+        } else if (question.operation === 'length-units') {
+            // Единицы длины
+            n1El.textContent = question.n1;
+            opEl.textContent = question.fromUnit + ' →';
+            n2El.textContent = question.toUnit;
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'physics-velocity') {
+            equationContainer.style.display = 'block';
+            if (question.unknown === 'v') {
+                n1El.textContent = question.d + ' км';
+                opEl.textContent = '÷';
+                n2El.textContent = question.t + ' ч';
+            } else if (question.unknown === 'd') {
+                n1El.textContent = question.v + ' км/ч';
+                opEl.textContent = '×';
+                n2El.textContent = question.t + ' ч';
+            } else {
+                n1El.textContent = question.d + ' км';
+                opEl.textContent = '÷';
+                n2El.textContent = question.v + ' км/ч';
+            }
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'physics-gravity') {
+            equationContainer.style.display = 'block';
+            if (question.moonWeight) {
+                n1El.textContent = question.mass + ' кг';
+                opEl.textContent = '÷ 6';
+                n2El.textContent = '(Луна)';
+            } else {
+                n1El.textContent = question.mass + ' кг';
+                opEl.textContent = '× 10';
+                n2El.textContent = '= ? Н';
+            }
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'physics-lever') {
+            equationContainer.style.display = 'block';
+            if (question.unknown === 'f2') {
+                n1El.textContent = `${question.f1}×${question.l1}`;
+                opEl.textContent = '=';
+                n2El.textContent = `?×${question.l2}`;
+            } else {
+                n1El.textContent = `${question.f1}×${question.l1}`;
+                opEl.textContent = '=';
+                n2El.textContent = `${question.f2}×?`;
+            }
+            answerInput.value = '';
+            answerInput.style.display = 'inline-block';
+        } else if (question.operation === 'physics-light') {
+            // Качественный вопрос: 3 варианта ответа
+            equationContainer.style.display = 'none';
+            answerInput.style.display = 'none';
+            physicsChoice.style.display = 'flex';
+            physicsChoice.innerHTML = '';
+            question.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'fraction-choice-btn';
+                btn.dataset.value = idx;
+                btn.textContent = opt;
+                btn.onclick = () => this.selectPhysicsChoice(idx);
+                physicsChoice.appendChild(btn);
+            });
+            this.selectedPhysicsAnswer = null;
+        } else if (question.operation === 'physics-density') {
+            equationContainer.style.display = 'block';
+            if (question.subType === 'calc') {
+                n1El.textContent = question.mass + ' г';
+                opEl.textContent = '÷';
+                n2El.textContent = question.volume + ' см³';
+                answerInput.value = '';
+                answerInput.style.display = 'inline-block';
+            } else {
+                // Тонет/плывёт — 2 кнопки
+                equationContainer.style.display = 'none';
+                answerInput.style.display = 'none';
+                physicsChoice.style.display = 'flex';
+                physicsChoice.innerHTML = '';
+                ['Тонет', 'Плывёт'].forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'fraction-choice-btn';
+                    btn.dataset.value = idx + 1;
+                    btn.textContent = opt;
+                    btn.onclick = () => this.selectPhysicsChoice(idx + 1);
+                    physicsChoice.appendChild(btn);
+                });
+                this.selectedPhysicsAnswer = null;
+            }
         } else {
             // Обычные операции: сложение, вычитание, умножение, деление
             n1El.textContent = question.n1;
@@ -418,8 +663,14 @@ const app = {
         this.setVisual(this.state.currentVisual, question);
         this.updateProgress();
         
-        // Фокус на поле ввода (если не дроби-сравнение)
-        if (question.operation !== 'compare' || !question.subOperation) {
+        // Фокус на поле ввода (если не выбор из кнопок)
+        if (question.operation === 'divide-rem') {
+            document.getElementById('quotient-input').focus();
+        } else if (['angle-type', 'physics-light'].includes(question.operation) ||
+                   (question.operation === 'physics-density' && question.subType === 'float') ||
+                   (question.operation === 'compare' && question.subOperation)) {
+            // Не фокусируем — выбор из кнопок
+        } else {
             document.getElementById('answer-input').focus();
         }
     },
@@ -482,6 +733,15 @@ const app = {
                 hint: week.lessons[0].hint,
                 fingerTip: week.lessons[0].fingerTip
             };
+        } else if (operation === 'divide-remainder') {
+            return {
+                strategy: `Деление с остатком: ${question.n1} ÷ ${question.n2}. Найди наибольшее кратное ${question.n2}, не превышающее ${question.n1}!`,
+                hint: week.lessons[0].hint,
+                fingerTip: week.lessons[0].fingerTip
+            };
+        } else if (operation === 'angle-type' || operation === 'length-units' ||
+                   operation.startsWith('physics-')) {
+            return week.lessons[0];
         }
         return week.lessons[0];
     },
@@ -504,12 +764,32 @@ const app = {
             desc.innerHTML = `<span class="frac"><span class="frac-n">${q.n1}</span><span class="frac-d">${q.n2}</span></span> = <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.newDenom}</span></span>`;
         } else if (q.operation === 'fraction-mixed') {
             desc.innerHTML = `Неправильная дробь <span class="frac"><span class="frac-n">${q.numerator}</span><span class="frac-d">${q.denom}</span></span> = ? целых и <span class="frac"><span class="frac-n">?</span><span class="frac-d">${q.denom}</span></span> — введи целую часть`;
+        } else if (q.operation === 'divide-rem') {
+            desc.innerText = `${q.n1} ÷ ${q.n2} = ? ост. ? (Делимое = Делитель × Частное + Остаток)`;
         } else if (q.operation === '÷') {
             desc.innerText = `${q.n1} ÷ ${q.n2} = ? (${q.n2} × ? = ${q.n1})`;
         } else if (q.operation === 'area') {
             desc.innerText = `Прямоугольник ${q.n1} × ${q.n2}. Чему равна площадь S = ${q.n1} × ${q.n2} = ?`;
         } else if (q.operation === 'perimeter') {
             desc.innerText = `Прямоугольник ${q.n1} × ${q.n2}. Чему равен периметр P = (${q.n1} + ${q.n2}) × 2 = ?`;
+        } else if (q.operation === 'angle-type') {
+            desc.innerText = `Угол ${q.degrees}°. Какой это угол: острый, прямой или тупой?`;
+        } else if (q.operation === 'length-units') {
+            desc.innerText = `${q.n1} ${q.fromUnit} = ? ${q.toUnit}`;
+        } else if (q.operation === 'physics-velocity') {
+            if (q.unknown === 'v') desc.innerText = `Расстояние ${q.d} км, время ${q.t} ч. Найди скорость v = ?`;
+            else if (q.unknown === 'd') desc.innerText = `Скорость ${q.v} км/ч, время ${q.t} ч. Найди расстояние d = ?`;
+            else desc.innerText = `Расстояние ${q.d} км, скорость ${q.v} км/ч. Найди время t = ?`;
+        } else if (q.operation === 'physics-gravity') {
+            if (q.moonWeight) desc.innerText = `На Земле ${q.mass} кг. Сколько кг весит на Луне? (в 6 раз меньше)`;
+            else desc.innerText = `Масса ${q.mass} кг. Найди вес W = m × g (g = 10 м/с²)`;
+        } else if (q.operation === 'physics-lever') {
+            desc.innerText = `F₁=${q.f1}, l₁=${q.l1}. ${q.unknown === 'f2' ? `l₂=${q.l2}. Найди F₂ = ?` : `F₂=${q.f2}. Найди l₂ = ?`}`;
+        } else if (q.operation === 'physics-light') {
+            desc.innerText = q.text;
+        } else if (q.operation === 'physics-density') {
+            if (q.subType === 'calc') desc.innerText = `Масса ${q.mass} г, объём ${q.volume} см³. Найди плотность ρ = m ÷ V = ?`;
+            else desc.innerText = `${q.itemName} (плотность ${q.itemDensity} г/см³). Тонет или плывёт в воде?`;
         } else {
             desc.innerText = `${q.n1} ${operation} ${q.n2} = ?`;
         }
@@ -534,6 +814,10 @@ const app = {
             if (type === 'array') this.renderFractionVisual(container, q);
             else if (type === 'line') this.renderFractionLine(container, q);
             else this.renderFractionPie(container, q);
+        } else if (operation === 'divide-rem') {
+            if (type === 'array') this.renderRemainderArray(container, q.n1, q.n2);
+            else if (type === 'line') this.renderRemainderNumberLine(container, q.n1, q.n2);
+            else this.renderRemainderFormula(container, q.n1, q.n2);
         } else if (operation === '÷') {
             if (type === 'array') this.renderDivideArray(container, q.n1, q.n2);
             else if (type === 'line') this.renderDivideNumberLine(container, q.n1, q.n2);
@@ -555,6 +839,34 @@ const app = {
             if (type === 'array') this.renderSubArray(container, q.n1, q.n2);
             else if (type === 'line') this.renderSubNumberLine(container, q.n1, q.n2);
             else this.renderFingersSub(container, q.n1, q.n2);
+        } else if (operation === 'angle-type') {
+            if (type === 'array') this.renderAngleSVG(container, q);
+            else if (type === 'line') this.renderAngleNumberLine(container, q);
+            else this.renderAngleTypes(container, q);
+        } else if (operation === 'length-units') {
+            if (type === 'array') this.renderRuler(container, q);
+            else if (type === 'line') this.renderUnitStairs(container, q);
+            else this.renderUnitFormula(container, q);
+        } else if (operation === 'physics-velocity') {
+            if (type === 'array') this.renderVelocityAnimation(container, q);
+            else if (type === 'line') this.renderTriangleFormula(container, q);
+            else this.renderVelocityFormula(container, q);
+        } else if (operation === 'physics-gravity') {
+            if (type === 'array') this.renderGravityVisual(container, q);
+            else if (type === 'line') this.renderTriangleFormula(container, q);
+            else this.renderGravityFormula(container, q);
+        } else if (operation === 'physics-lever') {
+            if (type === 'array') this.renderLeverSVG(container, q);
+            else if (type === 'line') this.renderTriangleFormula(container, q);
+            else this.renderLeverFormula(container, q);
+        } else if (operation === 'physics-light') {
+            if (type === 'array') this.renderLightSVG(container, q);
+            else if (type === 'line') this.renderLightFacts(container, q);
+            else this.renderLightFormula(container, q);
+        } else if (operation === 'physics-density') {
+            if (type === 'array') this.renderDensityVisual(container, q);
+            else if (type === 'line') this.renderDensityTable(container, q);
+            else this.renderDensityFormula(container, q);
         } else {
             // Умножение (по умолчанию)
             const { n1, n2 } = q;
@@ -1352,15 +1664,697 @@ const app = {
         container.appendChild(info);
     },
 
+    // ─── ДЕЛЕНИЕ С ОСТАТКОМ: Визуализация ───
+    renderRemainderArray(container, dividend, divisor) {
+        const quotient = Math.floor(dividend / divisor);
+        const remainder = dividend % divisor;
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.gap = '4px';
+        container.style.justifyContent = 'center';
+        container.style.padding = '10px';
+
+        // Полные группы
+        for (let g = 0; g < quotient; g++) {
+            const group = document.createElement('div');
+            group.style.cssText = 'display:flex; flex-direction:column; gap:4px; border:2px solid var(--primary); border-radius:6px; padding:4px;';
+            for (let r = 0; r < divisor; r++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot row-even';
+                dot.style.animationDelay = `${(g * divisor + r) * 25}ms`;
+                group.appendChild(dot);
+            }
+            container.appendChild(group);
+        }
+
+        // Остаток (если есть)
+        if (remainder > 0) {
+            const remGroup = document.createElement('div');
+            remGroup.style.cssText = 'display:flex; flex-direction:column; gap:4px; border:2px dashed var(--secondary); border-radius:6px; padding:4px;';
+            for (let r = 0; r < remainder; r++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot row-odd';
+                dot.style.animationDelay = `${(quotient * divisor + r) * 25}ms`;
+                remGroup.appendChild(dot);
+            }
+            container.appendChild(remGroup);
+        }
+
+        const label = document.createElement('div');
+        label.style.cssText = 'width:100%; text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:8px;';
+        label.innerHTML = `<span style="color:var(--primary)">${quotient}</span> полных групп по ${divisor} + <span style="color:var(--secondary)">${remainder}</span> остаток`;
+        container.appendChild(label);
+    },
+
+    renderRemainderNumberLine(container, dividend, divisor) {
+        container.style.display = 'block';
+        container.style.padding = '10px 0';
+
+        const quotient = Math.floor(dividend / divisor);
+        const remainder = dividend % divisor;
+        const line = document.createElement('div');
+        line.className = 'number-line';
+
+        // Прыжки от dividend к 0
+        for (let i = 0; i <= quotient; i++) {
+            const step = document.createElement('div');
+            step.className = 'nl-step';
+            step.style.animationDelay = `${i * 100}ms`;
+
+            const num = document.createElement('div');
+            const val = dividend - i * divisor;
+            num.className = `nl-num ${i === quotient ? 'final' : ''}`;
+            num.textContent = i === quotient ? (remainder > 0 ? remainder : '0') : val;
+            step.appendChild(num);
+
+            if (i < quotient) {
+                const arrow = document.createElement('span');
+                arrow.className = 'nl-arrow';
+                arrow.textContent = ` −${divisor} →`;
+                step.appendChild(arrow);
+            }
+            line.appendChild(step);
+        }
+        container.appendChild(line);
+
+        const label = document.createElement('div');
+        label.className = 'nl-label';
+        label.innerHTML = `Вычитаем <strong>${divisor}</strong> из <strong>${dividend}</strong> — <strong>${quotient}</strong> раз${quotient === 1 ? '' : 'а'}. Остаток: <strong style="color:var(--secondary)">${remainder}</strong>`;
+        container.appendChild(label);
+    },
+
+    renderRemainderFormula(container, dividend, divisor) {
+        const quotient = Math.floor(dividend / divisor);
+        const remainder = dividend % divisor;
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Формула деления с остатком:</strong><br>
+<strong style="color:var(--accent)">Делимое = Делитель × Частное + Остаток</strong><br><br>
+Шаг 1: Найди наибольшее кратное <strong>${divisor}</strong>, не превышающее <strong>${dividend}</strong><br>
+→ <strong>${divisor}</strong> × <strong style="color:var(--primary)">${quotient}</strong> = <strong>${divisor * quotient}</strong><br><br>
+Шаг 2: Вычти: <strong>${dividend}</strong> − <strong>${divisor * quotient}</strong> = <strong style="color:var(--secondary)">${remainder}</strong> (остаток)<br><br>
+Проверка: <strong>${divisor}</strong> × <strong>${quotient}</strong> + <strong>${remainder}</strong> = <strong>${dividend}</strong> ✓<br>
+<em>Остаток всегда меньше делителя: ${remainder} &lt; ${divisor} ✓</em>`;
+        container.appendChild(info);
+    },
+
+    // ─── ГЕОМЕТРИЯ: Визуализация ───
+    renderAngleSVG(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const svgW = 200, svgH = 160;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+        svg.style.overflow = 'visible';
+
+        const cx = 40, cy = svgH - 30, len = 120;
+        const rad = q.degrees * Math.PI / 180;
+        const x2 = cx + len * Math.cos(rad);
+        const y2 = cy - len * Math.sin(rad);
+
+        // Горизонтальный луч
+        const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line1.setAttribute('x1', cx); line1.setAttribute('y1', cy);
+        line1.setAttribute('x2', cx + len); line1.setAttribute('y2', cy);
+        line1.setAttribute('stroke', 'var(--primary)'); line1.setAttribute('stroke-width', '3');
+        svg.appendChild(line1);
+
+        // Наклонный луч
+        const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line2.setAttribute('x1', cx); line2.setAttribute('y1', cy);
+        line2.setAttribute('x2', x2); line2.setAttribute('y2', y2);
+        line2.setAttribute('stroke', 'var(--secondary)'); line2.setAttribute('stroke-width', '3');
+        svg.appendChild(line2);
+
+        // Дуга угла
+        const arcR = 30;
+        const ax = cx + arcR; const ay = cy;
+        const bx = cx + arcR * Math.cos(rad); const by = cy - arcR * Math.sin(rad);
+        const largeArc = q.degrees > 180 ? 1 : 0;
+        const arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        arc.setAttribute('d', `M ${ax} ${ay} A ${arcR} ${arcR} 0 ${largeArc} 0 ${bx} ${by}`);
+        arc.setAttribute('fill', 'none');
+        arc.setAttribute('stroke', 'var(--accent)'); arc.setAttribute('stroke-width', '2');
+        svg.appendChild(arc);
+
+        // Подпись градусов
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const lx = cx + (arcR + 15) * Math.cos(rad / 2);
+        const ly = cy - (arcR + 15) * Math.sin(rad / 2);
+        label.setAttribute('x', lx); label.setAttribute('y', ly);
+        label.setAttribute('fill', 'var(--accent)'); label.setAttribute('font-size', '14');
+        label.setAttribute('font-weight', '700');
+        label.textContent = q.degrees + '°';
+        svg.appendChild(label);
+
+        container.appendChild(svg);
+    },
+
+    renderAngleNumberLine(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const scale = document.createElement('div');
+        scale.style.cssText = 'position:relative; height:40px; background:linear-gradient(to right, var(--primary), var(--accent), var(--secondary)); border-radius:8px; margin:10px;';
+        const marker = document.createElement('div');
+        const pct = (q.degrees / 180) * 100;
+        marker.style.cssText = `position:absolute; top:-8px; left:${pct}%; transform:translateX(-50%); font-size:1.2rem; font-weight:900; color:var(--text);`;
+        marker.textContent = '▼ ' + q.degrees + '°';
+        scale.appendChild(marker);
+
+        // Метки 0, 90, 180
+        ['0°', '90°', '180°'].forEach((txt, i) => {
+            const m = document.createElement('div');
+            m.style.cssText = `position:absolute; bottom:-20px; left:${i * 50}%; transform:translateX(-50%); font-size:0.8rem; color:var(--text-dim);`;
+            m.textContent = txt;
+            scale.appendChild(m);
+        });
+
+        container.appendChild(scale);
+
+        const legend = document.createElement('div');
+        legend.style.cssText = 'text-align:center; margin-top:28px; color:var(--text-dim); font-size:0.85rem;';
+        legend.innerHTML = '<span style="color:var(--primary)">Острый (0°-89°)</span> | <span style="color:var(--accent)">Прямой (90°)</span> | <span style="color:var(--secondary)">Тупой (91°-180°)</span>';
+        container.appendChild(legend);
+    },
+
+    renderAngleTypes(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Виды углов:</strong><br><br>
+<strong style="color:var(--primary)">Острый</strong> — меньше 90° (как клюв птицы)<br>
+<strong style="color:var(--accent)">Прямой</strong> — ровно 90° (угол тетрадки, буква L)<br>
+<strong style="color:var(--secondary)">Тупой</strong> — больше 90° (как открытая книга)<br><br>
+Текущий угол: <strong>${q.degrees}°</strong> — это <strong style="color:var(--accent)">?</strong>`;
+        container.appendChild(info);
+    },
+
+    // ─── ЕДИНИЦЫ ДЛИНЫ: Визуализация ───
+    renderRuler(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const svgW = 250, svgH = 60;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+
+        // Линейка
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', 10); rect.setAttribute('y', 10);
+        rect.setAttribute('width', 230); rect.setAttribute('height', 30);
+        rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', 'var(--primary)');
+        rect.setAttribute('stroke-width', '2'); rect.setAttribute('rx', '4');
+        svg.appendChild(rect);
+
+        const ticks = 10;
+        for (let i = 0; i <= ticks; i++) {
+            const x = 10 + (i / ticks) * 230;
+            const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            tick.setAttribute('x1', x); tick.setAttribute('y1', 10);
+            tick.setAttribute('x2', x); tick.setAttribute('y2', i % 5 === 0 ? 35 : 25);
+            tick.setAttribute('stroke', 'var(--text-dim)'); tick.setAttribute('stroke-width', '1');
+            svg.appendChild(tick);
+
+            if (i % 5 === 0 || i === ticks) {
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', x); label.setAttribute('y', 55);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', 'var(--text-dim)'); label.setAttribute('font-size', '10');
+                label.textContent = i;
+                svg.appendChild(label);
+            }
+        }
+        container.appendChild(svg);
+
+        const info = document.createElement('div');
+        info.style.cssText = 'text-align:center; color:var(--text-dim); font-size:0.85rem; margin-top:8px;';
+        info.innerHTML = `<strong>${q.n1} ${q.fromUnit}</strong> = <strong style="color:var(--accent)">? ${q.toUnit}</strong>`;
+        container.appendChild(info);
+    },
+
+    renderUnitStairs(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+
+        const stairs = document.createElement('div');
+        stairs.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:4px;';
+        const units = ['мм', 'см', 'дм', 'м', 'км'];
+        const factors = ['×10', '×10', '×10', '×1000'];
+        units.forEach((u, i) => {
+            const step = document.createElement('div');
+            const isFrom = u === q.fromUnit;
+            const isTo = u === q.toUnit;
+            step.style.cssText = `padding:6px 16px; border-radius:8px; font-weight:700; font-size:0.9rem; ${isFrom ? 'background:var(--primary); color:#fff;' : isTo ? 'background:var(--secondary); color:#000;' : 'background:var(--bg-card); color:var(--text-dim);'}`;
+            step.textContent = u;
+            stairs.appendChild(step);
+            if (i < factors.length) {
+                const arrow = document.createElement('div');
+                arrow.style.cssText = 'color:var(--accent); font-size:0.75rem; font-weight:600;';
+                arrow.textContent = `↕ ${factors[i]}`;
+                stairs.appendChild(arrow);
+            }
+        });
+        container.appendChild(stairs);
+    },
+
+    renderUnitFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Единицы длины — лесенка:</strong><br><br>
+1 см = 10 мм<br>1 дм = 10 см<br>1 м = 10 дм = 100 см<br>1 км = 1000 м<br><br>
+Задача: <strong style="color:var(--primary)">${q.n1} ${q.fromUnit}</strong> = <strong style="color:var(--accent)">? ${q.toUnit}</strong>`;
+        container.appendChild(info);
+    },
+
+    // ─── ФИЗИКА: Визуализация ───
+    renderVelocityAnimation(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '20px';
+
+        const track = document.createElement('div');
+        track.style.cssText = 'position:relative; height:40px; background:var(--bg-card); border-radius:8px; overflow:hidden; border:1px solid var(--border);';
+
+        const car = document.createElement('div');
+        car.style.cssText = 'position:absolute; top:8px; left:5px; font-size:1.5rem; transition:left 2s linear;';
+        car.textContent = '🚗';
+        track.appendChild(car);
+
+        container.appendChild(track);
+        setTimeout(() => { car.style.left = '85%'; }, 100);
+
+        const info = document.createElement('div');
+        info.style.cssText = 'text-align:center; margin-top:12px; color:var(--text-dim); font-size:0.85rem;';
+        if (q.unknown === 'v') info.innerHTML = `Расстояние: <strong>${q.d} км</strong>, Время: <strong>${q.t} ч</strong>. Скорость = ?`;
+        else if (q.unknown === 'd') info.innerHTML = `Скорость: <strong>${q.v} км/ч</strong>, Время: <strong>${q.t} ч</strong>. Расстояние = ?`;
+        else info.innerHTML = `Расстояние: <strong>${q.d} км</strong>, Скорость: <strong>${q.v} км/ч</strong>. Время = ?`;
+        container.appendChild(info);
+    },
+
+    renderTriangleFormula(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const svgW = 180, svgH = 140;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+
+        // Треугольник
+        const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        tri.setAttribute('points', `${svgW/2},10 10,${svgH-10} ${svgW-10},${svgH-10}`);
+        tri.setAttribute('fill', 'none');
+        tri.setAttribute('stroke', 'var(--primary)');
+        tri.setAttribute('stroke-width', '2');
+        svg.appendChild(tri);
+
+        // Линия разделения
+        const midLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        midLine.setAttribute('x1', 40); midLine.setAttribute('y1', svgH/2 + 10);
+        midLine.setAttribute('x2', svgW - 40); midLine.setAttribute('y2', svgH/2 + 10);
+        midLine.setAttribute('stroke', 'var(--text-dim)'); midLine.setAttribute('stroke-width', '1');
+        svg.appendChild(midLine);
+
+        let topText, leftText, rightText;
+        if (q.operation === 'physics-velocity') {
+            topText = 'd'; leftText = 'v'; rightText = 't';
+        } else if (q.operation === 'physics-gravity') {
+            topText = 'W'; leftText = 'm'; rightText = 'g';
+        } else {
+            topText = 'F₁l₁'; leftText = 'F₂'; rightText = 'l₂';
+        }
+
+        [[svgW/2, 45, topText], [50, svgH - 25, leftText], [svgW - 50, svgH - 25, rightText]].forEach(([x, y, txt]) => {
+            const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            t.setAttribute('x', x); t.setAttribute('y', y);
+            t.setAttribute('text-anchor', 'middle');
+            t.setAttribute('fill', 'var(--accent)'); t.setAttribute('font-size', '16');
+            t.setAttribute('font-weight', '700');
+            t.textContent = txt;
+            svg.appendChild(t);
+        });
+
+        container.appendChild(svg);
+    },
+
+    renderVelocityFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        let html = '<strong>Формулы движения:</strong><br><br>';
+        html += 'v = d ÷ t (скорость = расстояние ÷ время)<br>';
+        html += 'd = v × t (расстояние = скорость × время)<br>';
+        html += 't = d ÷ v (время = расстояние ÷ скорость)<br><br>';
+        if (q.unknown === 'v') html += `v = ${q.d} ÷ ${q.t} = <strong style="color:var(--accent)">?</strong>`;
+        else if (q.unknown === 'd') html += `d = ${q.v} × ${q.t} = <strong style="color:var(--accent)">?</strong>`;
+        else html += `t = ${q.d} ÷ ${q.v} = <strong style="color:var(--accent)">?</strong>`;
+        info.innerHTML = html;
+        container.appendChild(info);
+    },
+
+    renderGravityVisual(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.gap = '30px';
+        container.style.padding = '20px';
+
+        const planets = q.moonWeight ?
+            [{ name: '🌍 Земля', val: q.mass + ' кг' }, { name: '🌙 Луна', val: '? кг' }] :
+            [{ name: '🌍 Земля', val: q.mass + ' кг → ? Н' }];
+        planets.forEach(p => {
+            const div = document.createElement('div');
+            div.style.cssText = 'text-align:center; padding:12px; border:2px solid var(--border); border-radius:12px; background:var(--bg-card);';
+            div.innerHTML = `<div style="font-size:2rem; margin-bottom:8px;">${p.name}</div><div style="font-weight:700; color:var(--accent);">${p.val}</div>`;
+            container.appendChild(div);
+        });
+    },
+
+    renderGravityFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        let html = '<strong>Сила тяжести:</strong><br><br>';
+        html += 'W = m × g (вес = масса × ускорение свободного падения)<br>';
+        html += 'g на Земле ≈ 10 м/с²<br>';
+        html += 'g на Луне ≈ в 6 раз меньше<br><br>';
+        if (q.moonWeight) html += `На Земле: ${q.mass} кг. На Луне: ${q.mass} ÷ 6 = <strong style="color:var(--accent)">?</strong> кг`;
+        else html += `W = ${q.mass} × 10 = <strong style="color:var(--accent)">?</strong> Н`;
+        info.innerHTML = html;
+        container.appendChild(info);
+    },
+
+    renderLeverSVG(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const svgW = 240, svgH = 100;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+
+        // Балка
+        const beam = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        beam.setAttribute('x1', 20); beam.setAttribute('y1', 40);
+        beam.setAttribute('x2', svgW - 20); beam.setAttribute('y2', 40);
+        beam.setAttribute('stroke', 'var(--text)'); beam.setAttribute('stroke-width', '4');
+        svg.appendChild(beam);
+
+        // Опора (треугольник)
+        const pivot = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        pivot.setAttribute('points', `${svgW/2},40 ${svgW/2-12},70 ${svgW/2+12},70`);
+        pivot.setAttribute('fill', 'var(--accent)');
+        svg.appendChild(pivot);
+
+        // Грузы
+        [[30, `F₁=${q.f1}`, `l₁=${q.l1}`], [svgW - 30, `${q.unknown === 'f2' ? 'F₂=?' : 'F₂='+q.f2}`, `${q.unknown === 'l2' ? 'l₂=?' : 'l₂='+(q.l2||q.ans)}`]].forEach(([x, f, l]) => {
+            const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            box.setAttribute('x', x - 15); box.setAttribute('y', 15);
+            box.setAttribute('width', 30); box.setAttribute('height', 25);
+            box.setAttribute('rx', 4); box.setAttribute('fill', 'var(--primary)');
+            svg.appendChild(box);
+
+            const fText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            fText.setAttribute('x', x); fText.setAttribute('y', 32);
+            fText.setAttribute('text-anchor', 'middle');
+            fText.setAttribute('fill', '#fff'); fText.setAttribute('font-size', '9');
+            fText.setAttribute('font-weight', '700');
+            fText.textContent = f;
+            svg.appendChild(fText);
+
+            const lText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            lText.setAttribute('x', x); lText.setAttribute('y', 90);
+            lText.setAttribute('text-anchor', 'middle');
+            lText.setAttribute('fill', 'var(--text-dim)'); lText.setAttribute('font-size', '10');
+            lText.textContent = l;
+            svg.appendChild(lText);
+        });
+
+        container.appendChild(svg);
+    },
+
+    renderLeverFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Правило рычага:</strong><br><br>
+F₁ × l₁ = F₂ × l₂<br><br>
+${q.f1} × ${q.l1} = ${q.f1 * q.l1}<br>
+${q.unknown === 'f2' ? `? × ${q.l2} = ${q.f1 * q.l1} → F₂ = ${q.f1 * q.l1} ÷ ${q.l2}` : `${q.f2} × ? = ${q.f1 * q.l1} → l₂ = ${q.f1 * q.l1} ÷ ${q.f2}`} = <strong style="color:var(--accent)">?</strong>`;
+        container.appendChild(info);
+    },
+
+    renderLightSVG(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const svgW = 220, svgH = 100;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', svgW);
+        svg.setAttribute('height', svgH);
+
+        // Солнце
+        const sun = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        sun.setAttribute('cx', 30); sun.setAttribute('cy', 25);
+        sun.setAttribute('r', 15);
+        sun.setAttribute('fill', '#fae22a');
+        svg.appendChild(sun);
+
+        // Лучи
+        for (let i = 0; i < 3; i++) {
+            const ray = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            ray.setAttribute('x1', 45); ray.setAttribute('y1', 25 + i * 5);
+            ray.setAttribute('x2', 100); ray.setAttribute('y2', 50 + i * 10);
+            ray.setAttribute('stroke', '#fae22a'); ray.setAttribute('stroke-width', '1');
+            ray.setAttribute('stroke-dasharray', '4,4');
+            svg.appendChild(ray);
+        }
+
+        // Объект
+        const obj = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        obj.setAttribute('x', 100); obj.setAttribute('y', 40);
+        obj.setAttribute('width', 20); obj.setAttribute('height', 50);
+        obj.setAttribute('fill', 'var(--primary)'); obj.setAttribute('rx', 2);
+        svg.appendChild(obj);
+
+        // Тень
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        shadow.setAttribute('points', '120,90 200,90 120,60');
+        shadow.setAttribute('fill', 'rgba(0,0,0,0.3)');
+        svg.appendChild(shadow);
+
+        // Пол
+        const floor = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        floor.setAttribute('x1', 0); floor.setAttribute('y1', 90);
+        floor.setAttribute('x2', svgW); floor.setAttribute('y2', 90);
+        floor.setAttribute('stroke', 'var(--text-dim)'); floor.setAttribute('stroke-width', '1');
+        svg.appendChild(floor);
+
+        container.appendChild(svg);
+    },
+
+    renderLightFacts(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Факты о свете:</strong><br><br>
+💡 Свет распространяется прямолинейно<br>
+🌑 Тень = свет + непрозрачный предмет + экран<br>
+🔄 Угол падения = Угол отражения<br>
+☀️ Низкое солнце → длинная тень<br>
+👁️ Мы видим, потому что свет отражается`;
+        container.appendChild(info);
+    },
+
+    renderLightFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Вопрос:</strong><br><br>${q.text}<br><br>
+Подумай: как свет ведёт себя в реальной жизни?`;
+        container.appendChild(info);
+    },
+
+    renderDensityVisual(container, q) {
+        container.style.display = 'flex';
+        container.style.justifyContent = 'center';
+        container.style.padding = '20px';
+
+        const glass = document.createElement('div');
+        glass.style.cssText = 'width:100px; height:120px; border:3px solid var(--primary); border-top:none; border-radius:0 0 10px 10px; position:relative; background:linear-gradient(to top, rgba(83,110,223,0.3) 70%, transparent 70%);';
+
+        if (q.subType === 'float' && q.itemName) {
+            const item = document.createElement('div');
+            const topPos = q.itemDensity > 1 ? '60%' : '30%';
+            item.style.cssText = `position:absolute; left:50%; top:${topPos}; transform:translate(-50%,-50%); font-size:1.5rem; text-align:center;`;
+            item.innerHTML = `<div>${q.itemDensity > 1 ? '⬇️' : '🔄'}</div><div style="font-size:0.7rem; color:var(--text-dim);">${q.itemName}</div>`;
+            glass.appendChild(item);
+        }
+
+        const waterLabel = document.createElement('div');
+        waterLabel.style.cssText = 'position:absolute; right:-50px; bottom:35px; font-size:0.7rem; color:var(--text-dim);';
+        waterLabel.textContent = 'вода (ρ=1)';
+        glass.appendChild(waterLabel);
+
+        container.appendChild(glass);
+    },
+
+    renderDensityTable(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        info.innerHTML = `<strong>Плотности веществ (г/см³):</strong><br><br>
+🪵 Дерево: 0.5 — плывёт<br>
+🧊 Лёд: 0.9 — плывёт<br>
+💧 <strong>Вода: 1.0 (граница!)</strong><br>
+🧱 Кирпич: 1.8 — тонет<br>
+🪨 Камень: 2.5 — тонет<br>
+🔩 Железо: 7.8 — тонет`;
+        container.appendChild(info);
+    },
+
+    renderDensityFormula(container, q) {
+        container.style.display = 'block';
+        container.style.padding = '10px';
+        const info = document.createElement('div');
+        info.className = 'fingers-explanation';
+        if (q.subType === 'calc') {
+            info.innerHTML = `<strong>Формула плотности:</strong><br><br>
+ρ = m ÷ V (плотность = масса ÷ объём)<br><br>
+ρ = ${q.mass} ÷ ${q.volume} = <strong style="color:var(--accent)">?</strong> г/см³<br><br>
+Если ρ > 1 — тонет в воде.<br>Если ρ < 1 — плывёт!`;
+        } else {
+            info.innerHTML = `<strong>Тонет или плывёт?</strong><br><br>
+${q.itemName}: плотность ${q.itemDensity} г/см³<br>
+Вода: плотность 1.0 г/см³<br><br>
+${q.itemDensity} ${q.itemDensity > 1 ? '> 1 → скорее всего тонет!' : '< 1 → скорее всего плывёт!'}`;
+        }
+        container.appendChild(info);
+    },
+
     // ─── CHECK ANSWER ───
     check() {
         const q = this.state.currentQ;
         let input;
         
+        // Для деления с остатком — два поля
+        if (q.operation === 'divide-rem') {
+            const quotient = parseInt(document.getElementById('quotient-input').value);
+            const remainder = parseInt(document.getElementById('remainder-input').value);
+            if (isNaN(quotient) || isNaN(remainder)) return;
+            input = quotient; // главный ответ — частное
+            const feedback = document.getElementById('feedback');
+            this.state.total++;
+            if (quotient === q.ans && remainder === q.ansRemainder) {
+                this.state.correct++;
+                this.state.streak++;
+                this.state.divideTotal = (this.state.divideTotal || 0) + 1;
+                if (this.state.streak > this.state.bestStreak) this.state.bestStreak = this.state.streak;
+                this.state.wasWrong = false;
+                feedback.innerText = `⚡ ${this.getMotivation('correct')}`;
+                feedback.className = 'feedback ok';
+                this.showEnergyBurst();
+                this.triggerSpeedLines();
+                if (this.state.lessonIdx >= 9) {
+                    setTimeout(() => this.showModal('🎉', 'Глава пройдена!', `${this.getMotivation('correct')}\nТы решил 10 примеров подряд!`, 'Супер!'), 500);
+                }
+                setTimeout(() => { this.state.lessonIdx++; this.loadQuestion(); }, 1200);
+            } else {
+                this.state.streak = 0;
+                this.state.wasWrong = true;
+                feedback.innerText = `${this.getMotivation('wrong')}\n${this.getExplanation(q)}`;
+                feedback.className = 'feedback err';
+                setTimeout(() => this.loadQuestion(), 3500);
+            }
+            this.save();
+            this.updateStats();
+            this.checkAchievements();
+            return;
+        }
+
+        // Для углов — кнопки выбора
+        if (q.operation === 'angle-type') {
+            if (!this.selectedAngle) return;
+            input = this.selectedAngle;
+            const isCorrect = input === q.ans;
+            const feedback = document.getElementById('feedback');
+            this.state.total++;
+            if (isCorrect) {
+                this.state.correct++;
+                this.state.streak++;
+                this.state.physicsTotal = (this.state.physicsTotal || 0) + 1;
+                if (this.state.streak > this.state.bestStreak) this.state.bestStreak = this.state.streak;
+                this.state.wasWrong = false;
+                feedback.innerText = `⚡ ${this.getMotivation('correct')}`;
+                feedback.className = 'feedback ok';
+                this.showEnergyBurst();
+                this.triggerSpeedLines();
+                if (this.state.lessonIdx >= 9) setTimeout(() => this.showModal('🎉', 'Глава пройдена!', `${this.getMotivation('correct')}\nТы решил 10 примеров!`, 'Супер!'), 500);
+                setTimeout(() => { this.state.lessonIdx++; this.loadQuestion(); }, 1200);
+            } else {
+                this.state.streak = 0;
+                this.state.wasWrong = true;
+                feedback.innerText = `${this.getMotivation('wrong')}\n${this.getExplanation(q)}`;
+                feedback.className = 'feedback err';
+                setTimeout(() => this.loadQuestion(), 3500);
+            }
+            this.save(); this.updateStats(); this.checkAchievements();
+            return;
+        }
+
+        // Для физики-света и плотности (тонет/плывёт) — кнопки выбора
+        if (q.operation === 'physics-light' || (q.operation === 'physics-density' && q.subType === 'float')) {
+            if (this.selectedPhysicsAnswer === null || this.selectedPhysicsAnswer === undefined) return;
+            input = this.selectedPhysicsAnswer;
+            const isCorrect = input === q.ans;
+            const feedback = document.getElementById('feedback');
+            this.state.total++;
+            if (isCorrect) {
+                this.state.correct++;
+                this.state.streak++;
+                this.state.physicsTotal = (this.state.physicsTotal || 0) + 1;
+                if (this.state.streak > this.state.bestStreak) this.state.bestStreak = this.state.streak;
+                this.state.wasWrong = false;
+                feedback.innerText = `⚡ ${this.getMotivation('correct')}`;
+                feedback.className = 'feedback ok';
+                this.showEnergyBurst();
+                this.triggerSpeedLines();
+                if (this.state.lessonIdx >= 9) setTimeout(() => this.showModal('🎉', 'Глава пройдена!', `${this.getMotivation('correct')}\nТы решил 10 примеров!`, 'Супер!'), 500);
+                setTimeout(() => { this.state.lessonIdx++; this.loadQuestion(); }, 1200);
+            } else {
+                this.state.streak = 0;
+                this.state.wasWrong = true;
+                feedback.innerText = `${this.getMotivation('wrong')}\n${this.getExplanation(q)}`;
+                feedback.className = 'feedback err';
+                setTimeout(() => this.loadQuestion(), 3500);
+            }
+            this.save(); this.updateStats(); this.checkAchievements();
+            return;
+        }
+
         // Для сравнения дробей (1 или 2)
         if (q.operation === 'compare' && q.subOperation === 'fraction') {
             // Получаем значение из кнопок
-            const selectedBtn = document.querySelector('.fraction-choice-btn.selected');
+            const selectedBtn = document.querySelector('#fraction-choice .fraction-choice-btn.selected');
             if (!selectedBtn) return;
             input = parseInt(selectedBtn.dataset.value);
         } else {
@@ -1375,8 +2369,9 @@ const app = {
             this.state.correct++;
             this.state.streak++;
             // Трекинг для специальных достижений
-            if (q.operation === '÷') this.state.divideTotal = (this.state.divideTotal || 0) + 1;
+            if (q.operation === '÷' || q.operation === 'divide-rem') this.state.divideTotal = (this.state.divideTotal || 0) + 1;
             if (q.operation === 'area' || q.operation === 'perimeter') this.state.geometryTotal = (this.state.geometryTotal || 0) + 1;
+            if (q.operation && q.operation.startsWith('physics-') || q.operation === 'angle-type' || q.operation === 'length-units') this.state.physicsTotal = (this.state.physicsTotal || 0) + 1;
             if (this.state.streak > this.state.bestStreak) {
                 this.state.bestStreak = this.state.streak;
             }
@@ -1454,12 +2449,33 @@ const app = {
             return `Правильный ответ: ${q.ans}/${q.newDenom}.\nУмножь числитель и знаменатель на ${q.factor}: ${q.n1}×${q.factor}=${q.ans}, ${q.n2}×${q.factor}=${q.newDenom}`;
         } else if (operation === 'fraction-mixed') {
             return `Правильный ответ: ${q.whole} целых и ${q.remainder}/${q.denom}.\n${q.numerator} ÷ ${q.denom} = ${q.whole} остаток ${q.remainder}`;
+        } else if (operation === 'divide-rem') {
+            return `Правильный ответ: частное ${q.ans}, остаток ${q.ansRemainder}.\nФормула: ${q.n1} = ${q.n2} × ${q.ans} + ${q.ansRemainder}\nПроверка: ${q.n2} × ${q.ans} = ${q.n2 * q.ans}, ${q.n2 * q.ans} + ${q.ansRemainder} = ${q.n1} ✓`;
         } else if (operation === '÷') {
             return `Правильный ответ: ${q.ans}.\nМетод: ${q.n2} × ? = ${q.n1} → ? = ${q.ans}\nПроверка: ${q.n2} × ${q.ans} = ${q.n1} ✓`;
         } else if (operation === 'area') {
             return `Правильный ответ: ${q.ans}.\nПлощадь S = ${q.n1} × ${q.n2} = ${q.ans} кв. единиц`;
         } else if (operation === 'perimeter') {
             return `Правильный ответ: ${q.ans}.\nПериметр P = (${q.n1} + ${q.n2}) × 2 = ${q.n1+q.n2} × 2 = ${q.ans}`;
+        } else if (operation === 'angle-type') {
+            const types = { acute: 'Острый (< 90°)', right: 'Прямой (= 90°)', obtuse: 'Тупой (> 90°)' };
+            return `Правильный ответ: ${types[q.ans]}.\nУгол ${q.degrees}° ${q.degrees < 90 ? '< 90° → острый' : q.degrees === 90 ? '= 90° → прямой' : '> 90° → тупой'}`;
+        } else if (operation === 'length-units') {
+            return `Правильный ответ: ${q.ans} ${q.toUnit}.\n${q.n1} ${q.fromUnit} = ${q.ans} ${q.toUnit}`;
+        } else if (operation === 'physics-velocity') {
+            if (q.unknown === 'v') return `Правильный ответ: ${q.ans} км/ч.\nv = d ÷ t = ${q.d} ÷ ${q.t} = ${q.ans}`;
+            if (q.unknown === 'd') return `Правильный ответ: ${q.ans} км.\nd = v × t = ${q.v} × ${q.t} = ${q.ans}`;
+            return `Правильный ответ: ${q.ans} ч.\nt = d ÷ v = ${q.d} ÷ ${q.v} = ${q.ans}`;
+        } else if (operation === 'physics-gravity') {
+            if (q.moonWeight) return `Правильный ответ: ${q.ans} кг.\nНа Луне в 6 раз легче: ${q.mass} ÷ 6 = ${q.ans}`;
+            return `Правильный ответ: ${q.ans} Н.\nW = m × g = ${q.mass} × 10 = ${q.ans}`;
+        } else if (operation === 'physics-lever') {
+            return `Правильный ответ: ${q.ans}.\nF₁ × l₁ = F₂ × l₂\n${q.f1} × ${q.l1} = ${q.f1 * q.l1}\n${q.unknown === 'f2' ? `F₂ = ${q.f1 * q.l1} ÷ ${q.l2} = ${q.ans}` : `l₂ = ${q.f1 * q.l1} ÷ ${q.f2} = ${q.ans}`}`;
+        } else if (operation === 'physics-light') {
+            return `Правильный ответ: ${q.options[q.ans]}.`;
+        } else if (operation === 'physics-density') {
+            if (q.subType === 'calc') return `Правильный ответ: ${q.ans} г/см³.\nρ = m ÷ V = ${q.mass} ÷ ${q.volume} = ${q.ans}`;
+            return `Правильный ответ: ${q.ans === 1 ? 'Тонет' : 'Плывёт'}.\n${q.itemName}: плотность ${q.itemDensity} г/см³ ${q.itemDensity > 1 ? '> 1 → тонет' : '< 1 → плывёт'}`;
         } else if (operation === '+') {
             const s = CURRICULUM.strategyForOperation.add;
             return `Правильный ответ: ${q.ans}.\n${s.name}: ${s.formula(q.n1, q.n2)}`;
@@ -1513,7 +2529,21 @@ const app = {
 
     // Выбор для сравнения дробей
     selectFractionChoice(value) {
-        document.querySelectorAll('.fraction-choice-btn').forEach(btn => {
+        document.querySelectorAll('#fraction-choice .fraction-choice-btn').forEach(btn => {
+            btn.classList.toggle('selected', parseInt(btn.dataset.value) === value);
+        });
+    },
+
+    selectAngleChoice(value) {
+        this.selectedAngle = value;
+        document.querySelectorAll('#angle-choice .fraction-choice-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.value === value);
+        });
+    },
+
+    selectPhysicsChoice(value) {
+        this.selectedPhysicsAnswer = value;
+        document.querySelectorAll('#physics-choice .fraction-choice-btn').forEach(btn => {
             btn.classList.toggle('selected', parseInt(btn.dataset.value) === value);
         });
     },
@@ -1558,6 +2588,7 @@ const app = {
             if (ach.type === 'streak' && this.state.bestStreak >= ach.req) earned = true;
             if (ach.type === 'divide_total' && (this.state.divideTotal || 0) >= ach.req) earned = true;
             if (ach.type === 'geometry_total' && (this.state.geometryTotal || 0) >= ach.req) earned = true;
+            if (ach.type === 'physics_total' && (this.state.physicsTotal || 0) >= ach.req) earned = true;
 
             if (earned) {
                 this.state.achievements.push(ach.id);

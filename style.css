@@ -213,6 +213,18 @@ button:active { transform: scale(0.97); }
 .streak { color: var(--energy); font-weight: 800; font-size: 1.1rem; text-shadow: 0 0 10px var(--energy-glow); }
 
 /* === WEEK CARDS === */
+.subject-tabs { display: flex; gap: 8px; justify-content: center; margin: 10px 0 16px; }
+.subject-tab {
+    padding: 8px 16px; border-radius: 20px; border: 2px solid var(--border);
+    background: var(--bg-card); color: var(--text-dim); font-weight: 700;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+}
+.subject-tab.active {
+    border-color: var(--primary); background: var(--primary);
+    color: #fff; box-shadow: 0 0 12px var(--primary-glow);
+}
+.subject-tab:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
 .weeks-list { display: flex; flex-direction: column; gap: 14px; }
 .week-card {
     background: var(--bg-card);

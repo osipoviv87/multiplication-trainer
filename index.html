@@ -71,6 +71,11 @@
                 <button class="btn-back" onclick="app.nav('screen-home')">← Назад</button>
                 <h2>Карта Глав</h2>
             </div>
+            <div class="subject-tabs" id="subject-tabs">
+                <button class="subject-tab active" data-subject="math" onclick="app.switchSubject('math')">📐 Математика</button>
+                <button class="subject-tab" data-subject="geometry" onclick="app.switchSubject('geometry')">📏 Геометрия</button>
+                <button class="subject-tab" data-subject="physics" onclick="app.switchSubject('physics')">⚛️ Физика</button>
+            </div>
             <div id="weeks-container" class="weeks-list"></div>
         </div>
 
@@ -110,6 +115,18 @@
                         <button class="fraction-choice-btn" data-value="1" onclick="app.selectFractionChoice(1)">1</button>
                         <span class="fraction-choice-sep">или</span>
                         <button class="fraction-choice-btn" data-value="2" onclick="app.selectFractionChoice(2)">2</button>
+                    </div>
+                    <div class="fraction-choice" id="angle-choice" style="display:none;">
+                        <button class="fraction-choice-btn" data-value="acute" onclick="app.selectAngleChoice('acute')">Острый</button>
+                        <button class="fraction-choice-btn" data-value="right" onclick="app.selectAngleChoice('right')">Прямой</button>
+                        <button class="fraction-choice-btn" data-value="obtuse" onclick="app.selectAngleChoice('obtuse')">Тупой</button>
+                    </div>
+                    <div class="fraction-choice" id="physics-choice" style="display:none;">
+                    </div>
+                    <div id="remainder-input-block" style="display:none; align-items:center; gap:6px; justify-content:center;">
+                        <input type="number" id="quotient-input" autocomplete="off" placeholder="частное" style="width:80px; font-size:1.2rem; text-align:center; padding:8px; border-radius:8px; border:2px solid var(--primary); background:var(--card); color:var(--text);">
+                        <span style="color:var(--text-dim); font-size:1rem; font-weight:600;"> ост. </span>
+                        <input type="number" id="remainder-input" autocomplete="off" placeholder="остаток" style="width:80px; font-size:1.2rem; text-align:center; padding:8px; border-radius:8px; border:2px solid var(--secondary); background:var(--card); color:var(--text);">
                     </div>
                     <div class="controls">
                         <button class="btn-main" onclick="app.check()">Ответить</button>
